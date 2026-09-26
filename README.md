@@ -15,7 +15,7 @@ noise analysis, spectrum/spectrogram and an instrument tuner.
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 - Launcher: `,` / `/` browse the apps, `Enter` opens one, `Esc` (top left key) returns to the launcher.
@@ -23,6 +23,15 @@ with *Decibel meter* and *Mic test*. The other apps show as "coming soon" in the
   `c` calibration (`;`/`.` ±0.5 dB, `,`/`/` ±5 dB, `Enter` saves, `c` cancels).
   Samples at 32 kHz; A-weighting follows IEC 61672 within 0.25 dB up to 8 kHz.
   Automatic range: codec gain 18 dB, switches to 0 dB for very loud sound.
+- Guitar tuner: `m` GUITAR / CHROMATIC mode, `,`/`/` reference pitch A4 −1/+1 Hz
+  (430–450), `;`/`.` microphone gain. Needle ±50 cents, green centre ±3 cents.
+  GUITAR mode always shows the nearest string of the standard tuning, even when
+  it is more than a semitone off ("E −90, tune up"). Measured accuracy with
+  tones from a laptop speaker (220/440/880 Hz): within ±0.15 cents.
+  The needle moves only after 3 agreeing, clearly periodic readings (pluck noise
+  is not shown); GUITAR mode searches 60–420 Hz only (no octave errors at the
+  pluck); a sub-harmonic of the ringing note (low E resonating while the high E
+  decays) is ignored; a new pluck (+6 dB) starts over.
 - Mic test: `;` / `.` change the analog microphone gain (0–30 dB in 3 dB steps),
   `g` runs an automatic gain test (play a steady tone; the level should rise
   6 dB per step). The serial console (115200 baud) prints the values 4× per second.
@@ -74,6 +83,14 @@ Useful registers (ES8311 User Guide Rev 1.11):
 | 0x1A | automute / noise gate – off for measurements |
 | 0x1B, 0x1C | high-pass filter (DC removal), equalizer bypass |
 | 0x1D–0x30 | equalizer coefficients (one 2nd-order biquad) |
+
+### Pitch accuracy
+Plain YIN estimates the fraction of the period with a parabola through three
+points. With real sound (harmonics) that is off by up to ~0.07 samples – 3.4
+cents for 440 Hz at 16 kHz. `lib/dsp/pitch.cpp` therefore measures the fraction
+again over many periods (about 520 samples), which divides the error by the
+number of periods. `test/test_dsp/recording_440.h` is a real recording that
+guards this (plain YIN reads it +3.35 cents sharp).
 
 The microphone needs about 1 s to warm up after power-on (returns zeros).
 The microphone and the speaker share the I2S bus, so the speaker is turned

@@ -24,8 +24,14 @@ size_t read(int16_t *dst, size_t maxCount);
 // Samples thrown away because the stream buffer was full (main loop too slow).
 uint32_t droppedSamples();
 
-// Real sample rate: samples received per second, measured against the CPU
-// clock since start() (0 during the first 2 seconds).
-float measuredRate();
+// Real sample rate in samples per second, measured against the CPU clock
+// (0 until about 4 s after start(); gets more precise the longer it runs).
+double measuredRate();
+
+// measuredRate() / nominal rate, or 1 while not measured yet.
+// Frequencies computed with the nominal rate can be multiplied by this.
+// Measured on a Cardputer ADV: -15 ppm (0.03 cents), so it hardly matters,
+// but it keeps the tuner exact should another board or core differ more.
+float rateCorrection();
 
 }  // namespace audio_in

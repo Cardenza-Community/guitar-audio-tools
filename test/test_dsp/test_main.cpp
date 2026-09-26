@@ -9,6 +9,9 @@
 #include "notes.h"
 #include "pitch.h"
 #include "sound_level.h"
+#include "tuning.h"
+#include "recording_440.h"
+#include "decaying_high_e.h"
 #include "weighting.h"
 
 static const int RATE = 16000;
@@ -110,6 +113,23 @@ void test_too_few_samples_gives_zero() {
   dsp::YinDetector yin(RATE, 60, 1000, 1024);
   std::vector<float> x(100, 1.0f);
   TEST_ASSERT_EQUAL_FLOAT(0.0f, yin.detect(x.data(), x.size()));
+}
+
+void test_pitch_real_recording() {
+  // real microphone recording of a 440 Hz tone with strong harmonics
+  const size_t n = sizeof(RECORDING_440) / sizeof(RECORDING_440[0]);
+  std::vector<float> x(n);
+  dsp::removeDc(RECORDING_440, x.data(), n);
+  dsp::YinDetector yin(RATE, 60, 1100, 1024);
+  TEST_ASSERT_TRUE(n >= yin.samplesNeeded());
+  float hz = yin.detect(x.data(), n);
+  float cents = 1200 * std::log2(hz / RECORDING_440_HZ);
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, 0.0f, cents);
+}
+
+void test_pitch_high_note_with_harmonics() {
+  // without the refinement over many periods this read +1 cent
+  TEST_ASSERT_FLOAT_WITHIN(1046.5f * 0.0002f, 1046.5f, detectPitch(1046.5f, {0.35f, 0.2f}));
 }
 
 // ---------- notes ----------
@@ -227,6 +247,149 @@ void test_meter_fast_is_faster_than_slow() {
   TEST_ASSERT_TRUE(m.slowDb() < target - 4);
 }
 
+// ---------- tuner ----------
+
+void test_nearest_string_in_tune() {
+  dsp::StringMatch m = dsp::nearestGuitarString(110.0f);
+  TEST_ASSERT_EQUAL(1, m.index);                  // A string
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.0f, m.cents);
+}
+
+void test_nearest_string_far_out_of_tune() {
+  // low E almost a semitone flat: still the E string, not D#
+  dsp::StringMatch m = dsp::nearestGuitarString(78.0f);
+  TEST_ASSERT_EQUAL(0, m.index);
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, -95.1f, m.cents);
+  // 120 Hz lies between A2 (110) and D3 (146.8): A +150.6 c is closer than D -349.2 c
+  m = dsp::nearestGuitarString(120.0f);
+  TEST_ASSERT_EQUAL(1, m.index);
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, 150.6f, m.cents);
+}
+
+void test_nearest_string_high_e_and_reference() {
+  dsp::StringMatch m = dsp::nearestGuitarString(331.0f);
+  TEST_ASSERT_EQUAL(5, m.index);
+  TEST_ASSERT_EQUAL(64, m.midi);
+  // with A4 = 442 Hz everything is 7.85 cents higher
+  TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, dsp::nearestGuitarString(110.5f, 442.0f).cents);
+}
+
+void test_smoother_ignores_single_octave_jump() {
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 5; i++) s.push(110.0f);
+  float out = s.push(220.0f);                     // one wrong reading
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 110.0f, out);
+}
+
+void test_smoother_follows_new_note() {
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 5; i++) s.push(110.0f);
+  float out = 0;
+  for (int i = 0; i < 3; i++) out = s.push(146.83f);   // majority of the last 5
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 146.83f, out);
+}
+
+void test_smoother_calms_small_changes() {
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 5; i++) s.push(110.0f);
+  // readings jump to +10 cents: the output moves there gradually
+  float target = 110.0f * std::pow(2.0f, 10 / 1200.0f);
+  float first = 0, out = 0;
+  for (int i = 0; i < 20; i++) {
+    out = s.push(target);
+    if (i == 2) first = out;                      // median has switched by now
+  }
+  TEST_ASSERT_TRUE(first > 110.0f && first < target);
+  TEST_ASSERT_FLOAT_WITHIN(0.02f, target, out);
+}
+
+void test_smoother_silence() {
+  dsp::PitchSmoother s(6);
+  for (int i = 0; i < 5; i++) s.push(110.0f);
+  for (int i = 0; i < 5; i++) TEST_ASSERT_FLOAT_WITHIN(0.01f, 110.0f, s.push(0));  // short gap: hold
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, s.push(0));      // 6th miss: silence
+}
+
+void test_smoother_onset_needs_three_agreeing_readings() {
+  dsp::PitchSmoother s;
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, s.push(329.6f, 0.05f));
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, s.push(329.7f, 0.05f));
+  TEST_ASSERT_FLOAT_WITHIN(0.2f, 329.65f, s.push(329.6f, 0.05f));
+}
+
+void test_smoother_onset_ignores_pluck_noise() {
+  // an octave error at the pluck (659 Hz) is never shown
+  dsp::PitchSmoother s;
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, s.push(659.3f, 0.05f));
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, s.push(329.6f, 0.05f));
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, s.push(329.6f, 0.05f));
+  TEST_ASSERT_FLOAT_WITHIN(0.1f, 329.6f, s.push(329.6f, 0.05f));
+}
+
+void test_smoother_onset_needs_clear_tone() {
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 5; i++) TEST_ASSERT_EQUAL_FLOAT(0.0f, s.push(329.6f, 0.13f));
+}
+
+void test_smoother_holds_note_over_sub_harmonic() {
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 5; i++) s.push(329.6f, 0.05f);
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, 329.6f, s.push(82.4f, 0.1f));    // E4 / 4
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, 329.6f, s.push(164.8f, 0.1f));   // E4 / 2
+}
+
+void test_smoother_new_pluck_starts_over() {
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 6; i++) s.push(329.6f, 0.05f, -50);          // high E rings quietly
+  // the low E is plucked: 20 dB louder, a new note even though it is E4 / 4
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, s.push(82.41f, 0.05f, -30));
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, s.push(82.41f, 0.05f, -30));
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 82.41f, s.push(82.41f, 0.05f, -31));
+}
+
+void test_smoother_faded_note_keeps_its_echo() {
+  // high E fades out (6 readings without pitch), then the resonating low E
+  // (E4 / 4) is still heard: it must not show up as E2
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 5; i++) s.push(329.2f, 0.05f, -55);
+  for (int i = 0; i < 6; i++) s.push(0, 1, -58);
+  TEST_ASSERT_FALSE(s.locked());
+  float out = 0;
+  for (int i = 0; i < 3; i++) out = s.push(82.3f, 0.09f, -59);
+  TEST_ASSERT_FLOAT_WITHIN(1.0f, 329.2f, out);
+}
+
+void test_smoother_new_pluck_after_fade_is_new_note() {
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 5; i++) s.push(329.2f, 0.05f, -55);
+  for (int i = 0; i < 6; i++) s.push(0, 1, -60);
+  // the low E is plucked (much louder): a real E2
+  s.push(82.41f, 0.05f, -40);
+  s.push(82.41f, 0.05f, -40);
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 82.41f, s.push(82.41f, 0.05f, -41));
+}
+
+void test_tuner_real_decaying_high_e() {
+  // replay a real recording the way the tuner does (a reading every 512 samples);
+  // the note was locked on E4 before this excerpt
+  const size_t n = sizeof(DECAYING_HIGH_E) / sizeof(DECAYING_HIGH_E[0]);
+  dsp::YinDetector yin(RATE, 60, 420, 1024);
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 3; i++) s.push(329.6f, 0.05f, -57);
+  const size_t need = yin.samplesNeeded();
+  std::vector<float> x(need);
+  int readings = 0;
+  for (size_t start = 0; start + need <= n; start += 512) {
+    dsp::removeDc(DECAYING_HIGH_E + start, x.data(), need);
+    float level = dsp::toDbfs(dsp::rms(x.data(), need));
+    float hz = yin.detect(x.data(), need);
+    float out = s.push(hz, yin.lastAperiodicity(), level);
+    TEST_ASSERT_FLOAT_WITHIN(329.6f * 0.006f, 329.6f, out);        // +-10 cents, never E2
+    readings++;
+  }
+  TEST_ASSERT_TRUE(readings >= 14);
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -241,6 +404,8 @@ int main() {
   RUN_TEST(test_pitch_high_notes);
   RUN_TEST(test_pitch_guitar_strings);
   RUN_TEST(test_pitch_with_strong_harmonics);
+  RUN_TEST(test_pitch_real_recording);
+  RUN_TEST(test_pitch_high_note_with_harmonics);
   RUN_TEST(test_pitch_resolution_is_below_one_cent);
   RUN_TEST(test_noise_has_no_pitch);
   RUN_TEST(test_too_few_samples_gives_zero);
@@ -255,5 +420,20 @@ int main() {
   RUN_TEST(test_meter_full_scale_1khz);
   RUN_TEST(test_meter_leq_averages_energy);
   RUN_TEST(test_meter_fast_is_faster_than_slow);
+  RUN_TEST(test_nearest_string_in_tune);
+  RUN_TEST(test_nearest_string_far_out_of_tune);
+  RUN_TEST(test_nearest_string_high_e_and_reference);
+  RUN_TEST(test_smoother_ignores_single_octave_jump);
+  RUN_TEST(test_smoother_follows_new_note);
+  RUN_TEST(test_smoother_calms_small_changes);
+  RUN_TEST(test_smoother_silence);
+  RUN_TEST(test_smoother_onset_needs_three_agreeing_readings);
+  RUN_TEST(test_smoother_onset_ignores_pluck_noise);
+  RUN_TEST(test_smoother_onset_needs_clear_tone);
+  RUN_TEST(test_smoother_holds_note_over_sub_harmonic);
+  RUN_TEST(test_smoother_new_pluck_starts_over);
+  RUN_TEST(test_smoother_faded_note_keeps_its_echo);
+  RUN_TEST(test_smoother_new_pluck_after_fade_is_new_note);
+  RUN_TEST(test_tuner_real_decaying_high_e);
   return UNITY_END();
 }

@@ -222,7 +222,7 @@ class DecibelMeterApp : public App {
   void logToSerial(int peak) {
     if (millis() - lastLogMs_ < 250) return;
     lastLogMs_ = millis();
-    Serial.printf("fast=%.1f slow=%.1f leq=%.1f max=%.1f dBFS  pga=%d peak=%d  rate=%.1f dropped=%u\n",
+    Serial.printf("fast=%.1f slow=%.1f leq=%.1f max=%.1f dBFS  pga=%d peak=%d  rate=%.2f dropped=%u\n",
                   meter_->fastDb(), meter_->slowDb(), meter_->leqDb(), meter_->maxDb(),
                   es8311::pgaGain(), peak, audio_in::measuredRate(),
                   (unsigned)audio_in::droppedSamples());

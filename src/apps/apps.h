@@ -5,3 +5,4 @@
 
 App *micTestApp();
 App *decibelMeterApp();
+App *tunerApp();

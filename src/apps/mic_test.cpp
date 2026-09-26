@@ -1,5 +1,6 @@
 // Mic test: loudness in dBFS, waveform, pitch and note.
-// Keys: ; / . change the codec gain, g runs an automatic gain test.
+// Keys: ; / . change the codec gain, g runs an automatic gain test,
+//       d dumps 2 s of raw samples to the serial console (for analysis on a PC).
 // Used to check the microphone and as a simple example of an app.
 #include <vector>
 #include "apps.h"
@@ -15,6 +16,7 @@ namespace {
 const int RATE = 16000;
 const size_t WINDOW = 2048;      // samples analysed at once (128 ms)
 const size_t HOP = 1024;         // analyse after every 1024 new samples (~16x per second)
+const size_t DUMP_SAMPLES = 2 * RATE;
 
 class MicTestApp : public App {
  public:
@@ -39,9 +41,15 @@ class MicTestApp : public App {
     std::vector<int16_t>().swap(history_);
     std::vector<int16_t>().swap(ordered_);
     std::vector<float>().swap(signal_);
+    std::vector<int16_t>().swap(dump_);
   }
 
   void process(const int16_t *samples, size_t count) override {
+    // a dump can also be requested from the PC by sending "d" over serial
+    while (Serial.available()) {
+      if (Serial.read() == 'd') startDump();
+    }
+    if (dump_.capacity()) collectDump(samples, count);
     for (size_t i = 0; i < count; i++) {
       history_[writePos_] = samples[i];
       writePos_ = (writePos_ + 1) % WINDOW;
@@ -56,6 +64,7 @@ class MicTestApp : public App {
     if (key.ch == ';') es8311::setPgaGain(es8311::pgaGain() + 3);
     if (key.ch == '.') es8311::setPgaGain(es8311::pgaGain() - 3);
     if (key.ch == 'g' && !sweeping_) startSweep();
+    if (key.ch == 'd') startDump();
   }
 
   void draw(M5Canvas &c) override {
@@ -102,7 +111,7 @@ class MicTestApp : public App {
       c.print("   --- Hz");
     }
 
-    ui::footer(";/. gain   g gain test   Esc menu");
+    ui::footer(";/. gain  g gain test  d dump  Esc");
   }
 
  private:
@@ -119,7 +128,7 @@ class MicTestApp : public App {
     float hz = 0;
     if (db > -75) {
       size_t need = yin_->samplesNeeded();
-      hz = yin_->detect(signal_.data() + WINDOW - need, need);
+      hz = yin_->detect(signal_.data() + WINDOW - need, need) * audio_in::rateCorrection();
     }
 
     // display smoothing: loudness = average power of ~0.25 s,
@@ -137,10 +146,32 @@ class MicTestApp : public App {
 
     if (millis() - lastPrintMs_ >= 250) {
       lastPrintMs_ = millis();
-      Serial.printf("gain=%ddB dBFS=%.1f peak=%d f=%.1fHz rate=%.1f dropped=%u\n",
+      Serial.printf("gain=%ddB dBFS=%.1f peak=%d f=%.2fHz rate=%.2f dropped=%u\n",
                     es8311::pgaGain(), db, peak_, hz, audio_in::measuredRate(),
                     (unsigned)audio_in::droppedSamples());
     }
+  }
+
+  // Raw sample dump: 2 s of continuous samples, printed as text lines
+  //   DUMP BEGIN rate=<nominal> n=<count>
+  //   <32 comma-separated samples per line>
+  //   DUMP END
+  void startDump() {
+    if (dump_.capacity()) return;             // already recording
+    dump_.reserve(DUMP_SAMPLES);
+    Serial.println("DUMP recording");
+  }
+
+  void collectDump(const int16_t *samples, size_t count) {
+    for (size_t i = 0; i < count && dump_.size() < DUMP_SAMPLES; i++) dump_.push_back(samples[i]);
+    if (dump_.size() < DUMP_SAMPLES) return;
+    Serial.printf("DUMP BEGIN rate=%d n=%u\n", RATE, (unsigned)dump_.size());
+    for (size_t i = 0; i < dump_.size(); i += 32) {
+      for (size_t k = i; k < i + 32 && k < dump_.size(); k++) Serial.printf(k == i ? "%d" : ",%d", dump_[k]);
+      Serial.println();
+    }
+    Serial.println("DUMP END");
+    std::vector<int16_t>().swap(dump_);
   }
 
   // Automatic gain test: PGA 0, 6 ... 30 dB, 2 s each, average level printed.
@@ -184,6 +215,8 @@ class MicTestApp : public App {
   float smoothPower_ = 0, shownDb_ = dsp::SILENCE_DB, shownHz_ = 0;
   int peak_ = 0;
   uint32_t lastPitchMs_ = 0, lastPrintMs_ = 0;
+
+  std::vector<int16_t> dump_;      // raw samples being collected for a dump
 
   bool sweeping_ = false;
   int sweepGain_ = 0, sweepBlocks_ = 0;

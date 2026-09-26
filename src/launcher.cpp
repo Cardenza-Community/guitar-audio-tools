@@ -116,7 +116,7 @@ struct Entry {
 // Adding an app: write it in src/apps/, declare it in apps.h, add a line here.
 static Entry entries[] = {
     {"Decibel meter", "sound level in dB", iconDecibel, decibelMeterApp()},
-    {"Guitar tuner", "needle tuner, cents", iconTuner, nullptr},
+    {"Guitar tuner", "needle tuner, cents", iconTuner, tunerApp()},
     {"PolyTune", "all strings at once", iconPolyTune, nullptr},
     {"Spectrum", "music analyser bars", iconSpectrum, nullptr},
     {"BPM", "tempo: listen or tap", iconBpm, nullptr},
