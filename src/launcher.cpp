@@ -118,7 +118,7 @@ static Entry entries[] = {
     {"Decibel meter", "sound level in dB", iconDecibel, decibelMeterApp()},
     {"Guitar tuner", "needle tuner, cents", iconTuner, tunerApp()},
     {"PolyTune", "all strings at once", iconPolyTune, polyTuneApp()},
-    {"Spectrum", "music analyser bars", iconSpectrum, nullptr},
+    {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
     {"BPM", "tempo: listen or tap", iconBpm, nullptr},
     {"Vocal trainer", "sing the target note", iconVocal, nullptr},
     {"Recorder", "WAV on the SD card", iconRecorder, nullptr},

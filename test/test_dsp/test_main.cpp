@@ -16,6 +16,10 @@
 #include "decimator.h"
 #include "polytune.h"
 #include "strums.h"
+#include "fft.h"
+#include "spectrum.h"
+#include "auto_range.h"
+#include <complex>
 #include "weighting.h"
 
 static const int RATE = 16000;
@@ -539,6 +543,94 @@ void test_polytune_real_weak_strum() {
   TEST_ASSERT_TRUE(strongest < dsp::MIN_STRUM_AMPLITUDE);
 }
 
+// ---------- FFT and spectrum bands ----------
+
+void test_fft_matches_slow_dft() {
+  const size_t n = 64;
+  std::vector<std::complex<float>> x(n), slow(n);
+  uint32_t seed = 5;
+  for (auto &v : x) {
+    seed = seed * 1103515245u + 12345u;
+    v = {(float)((int32_t)(seed >> 16) % 1000), 0.0f};
+  }
+  for (size_t k = 0; k < n; k++) {                 // DFT straight from the definition
+    std::complex<double> sum = 0;
+    for (size_t i = 0; i < n; i++) sum += std::complex<double>(x[i]) * std::polar(1.0, -2 * 3.14159265358979 * k * i / n);
+    slow[k] = std::complex<float>(sum);
+  }
+  dsp::Fft fft(n);
+  fft.forward(x.data());
+  for (size_t k = 0; k < n; k++) TEST_ASSERT_FLOAT_WITHIN(0.5f, 0.0f, std::abs(x[k] - slow[k]));
+}
+
+void test_spectrum_sine_lights_its_band() {
+  dsp::SpectrumBands sb(32000, 2048, 16, 40, 16000);
+  std::vector<int16_t> x(2048);
+  for (size_t i = 0; i < x.size(); i++) x[i] = (int16_t)std::lround(32767 * std::sin(2 * PI_F * 1000 * i / 32000));
+  std::vector<float> db(sb.bands());
+  sb.analyse(x.data(), db.data());
+  int loudest = (int)(std::max_element(db.begin(), db.end()) - db.begin());
+  TEST_ASSERT_TRUE(sb.centreHz(loudest) / 1000 < 1.4f && 1000 / sb.centreHz(loudest) < 1.4f);
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, -3.01f, db[loudest]);
+  // bands two or more away are far below
+  for (int b = 0; b < sb.bands(); b++)
+    if (std::abs(b - loudest) >= 2) TEST_ASSERT_TRUE(db[b] < db[loudest] - 40);
+}
+
+void test_spectrum_low_and_high_tones() {
+  dsp::SpectrumBands sb(32000, 2048, 16, 40, 16000);
+  std::vector<float> db(sb.bands());
+  for (float hz : {60.0f, 12000.0f}) {
+    std::vector<int16_t> x(2048);
+    for (size_t i = 0; i < x.size(); i++) x[i] = (int16_t)std::lround(10000 * std::sin(2 * PI_F * hz * i / 32000));
+    sb.analyse(x.data(), db.data());
+    int loudest = (int)(std::max_element(db.begin(), db.end()) - db.begin());
+    TEST_ASSERT_TRUE(sb.centreHz(loudest) / hz < 1.6f && hz / sb.centreHz(loudest) < 1.6f);
+  }
+}
+
+void test_spectrum_silence() {
+  dsp::SpectrumBands sb(32000, 2048, 16, 40, 16000);
+  std::vector<int16_t> x(2048, 0);
+  std::vector<float> db(sb.bands());
+  sb.analyse(x.data(), db.data());
+  for (float v : db) TEST_ASSERT_EQUAL_FLOAT(dsp::SILENCE_DB, v);
+}
+
+// ---------- automatic sensitivity of the spectrum ----------
+
+static void feed(dsp::AutoRange &a, float db, float seconds) {
+  for (float t = 0; t < seconds; t += 0.032f) a.update(db, 0.032f);
+}
+
+void test_autorange_jumps_to_music() {
+  dsp::AutoRange a(30, -50);
+  feed(a, -70, 2);
+  a.update(-30, 0.032f);
+  TEST_ASSERT_EQUAL_FLOAT(-30.0f, a.top());
+  TEST_ASSERT_EQUAL_FLOAT(-60.0f, a.bottom());
+}
+
+void test_autorange_comes_down_slowly() {
+  dsp::AutoRange a(30, -50);
+  feed(a, -20, 1);
+  feed(a, -40, 1);                                // music gets 20 dB quieter
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, -26.0f, a.top()); // 6 dB per second
+}
+
+void test_autorange_silence_floor() {
+  dsp::AutoRange a(30, -50);
+  feed(a, -80, 5);
+  TEST_ASSERT_EQUAL_FLOAT(-50.0f, a.top());
+}
+
+void test_autorange_range_change() {
+  dsp::AutoRange a(30, -50);
+  feed(a, -30, 1);
+  a.setRange(20);
+  TEST_ASSERT_EQUAL_FLOAT(-50.0f, a.bottom());
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -593,5 +685,13 @@ int main() {
   RUN_TEST(test_polytune_ignores_steady_background_tone);
   RUN_TEST(test_polytune_real_good_strum);
   RUN_TEST(test_polytune_real_weak_strum);
+  RUN_TEST(test_fft_matches_slow_dft);
+  RUN_TEST(test_spectrum_sine_lights_its_band);
+  RUN_TEST(test_spectrum_low_and_high_tones);
+  RUN_TEST(test_spectrum_silence);
+  RUN_TEST(test_autorange_jumps_to_music);
+  RUN_TEST(test_autorange_comes_down_slowly);
+  RUN_TEST(test_autorange_silence_floor);
+  RUN_TEST(test_autorange_range_change);
   return UNITY_END();
 }

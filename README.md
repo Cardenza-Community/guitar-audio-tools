@@ -15,7 +15,7 @@ noise analysis, spectrum/spectrogram and an instrument tuner.
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner*, *PolyTune* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner*, *PolyTune*, *Spectrum* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 - Launcher: `,` / `/` browse the apps, `Enter` opens one, `Esc` (top left key) returns to the launcher.
@@ -39,6 +39,10 @@ with *Decibel meter*, *Guitar tuner*, *PolyTune* and *Mic test*. The other apps 
   handling noise and steady background tones in the room are ignored.
   `;`/`.` microphone gain. Accuracy on synthetic chords ±1.3 cents; real strums
   matched the single-string tuner.
+- Spectrum: 16 bars 60 Hz – 16 kHz of green/yellow/red blocks, FFT of 2048
+  samples at 32 kHz every 32 ms, bars fall slowly, peaks hold 0.8 s. Automatic
+  sensitivity: the scale jumps to the loudest band and recovers 6 dB/s.
+  `p` peaks on/off, `r` bar range 20 / 30 / 40 dB.
 - Mic test: `;` / `.` change the analog microphone gain (0–30 dB in 3 dB steps),
   `g` runs an automatic gain test (play a steady tone; the level should rise
   6 dB per step). The serial console (115200 baud) prints the values 4× per second.
@@ -52,7 +56,7 @@ with *Decibel meter*, *Guitar tuner*, *PolyTune* and *Mic test*. The other apps 
 | `src/apps/` | the apps (`mic_test.cpp`, ...) |
 | `src/services/` | `audio_in` (gapless microphone stream), `settings` (NVS), `ui` (screen helpers) |
 | `src/hw/es8311.*` | direct access to the ES8311 codec (gain, register dump) |
-| `lib/dsp/` | signal processing without hardware: levels, YIN pitch, notes |
+| `lib/dsp/` | signal processing without hardware: levels, weighting, YIN pitch, notes, tuning, PolyTune, FFT, spectrum bands |
 | `test/test_dsp/` | unit tests of `lib/dsp`, run on the PC |
 
 ## Building

@@ -7,3 +7,4 @@ App *micTestApp();
 App *decibelMeterApp();
 App *tunerApp();
 App *polyTuneApp();
+App *spectrumApp();
