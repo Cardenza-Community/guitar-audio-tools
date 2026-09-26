@@ -15,7 +15,7 @@ noise analysis, spectrum/spectrogram and an instrument tuner.
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner*, *PolyTune* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 - Launcher: `,` / `/` browse the apps, `Enter` opens one, `Esc` (top left key) returns to the launcher.
@@ -32,6 +32,13 @@ with *Decibel meter*, *Guitar tuner* and *Mic test*. The other apps show as "com
   is not shown); GUITAR mode searches 60–420 Hz only (no octave errors at the
   pluck); a sub-harmonic of the ringing note (low E resonating while the high E
   decays) is ignored; a new pluck (+6 dB) starts over.
+- PolyTune: strum all six open strings; after about 1.2 s one column per
+  string shows the deviation (marker up = sharp, down = flat, green centre
+  ±3 cents; an arrow above the column says which way to tune: yellow for
+  10–50 cents, red for more than 50; "?" = string not heard). Weak strums,
+  handling noise and steady background tones in the room are ignored.
+  `;`/`.` microphone gain. Accuracy on synthetic chords ±1.3 cents; real strums
+  matched the single-string tuner.
 - Mic test: `;` / `.` change the analog microphone gain (0–30 dB in 3 dB steps),
   `g` runs an automatic gain test (play a steady tone; the level should rise
   6 dB per step). The serial console (115200 baud) prints the values 4× per second.

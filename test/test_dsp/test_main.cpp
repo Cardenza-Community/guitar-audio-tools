@@ -1,6 +1,7 @@
 // Unit tests for the DSP library, run on the PC: pio test -e native
 // Every test builds a synthetic signal with a known answer.
 #include <unity.h>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
@@ -12,6 +13,9 @@
 #include "tuning.h"
 #include "recording_440.h"
 #include "decaying_high_e.h"
+#include "decimator.h"
+#include "polytune.h"
+#include "strums.h"
 #include "weighting.h"
 
 static const int RATE = 16000;
@@ -390,6 +394,151 @@ void test_tuner_real_decaying_high_e() {
   TEST_ASSERT_TRUE(readings >= 14);
 }
 
+// ---------- decimator and polyphonic tuner ----------
+
+static float decimatedGainDb(float hz) {
+  dsp::Decimator d(4);
+  auto x = tone(hz, 10000, 16000);
+  std::vector<float> y(x.size() / 4 + 1);
+  size_t n = d.process(x.data(), x.size(), y.data());
+  // skip the start while the filter fills up
+  double p = 0;
+  for (size_t i = n / 2; i < n; i++) p += (double)y[i] * y[i];
+  return (float)(10 * std::log10(p / (n - n / 2)) - 10 * std::log10(10000.0 * 10000 / 2));
+}
+
+void test_decimator_passes_guitar_range() {
+  TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, decimatedGainDb(82.41f));
+  TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, decimatedGainDb(700));
+}
+
+void test_decimator_blocks_what_would_fold_down() {
+  // 3700 Hz would appear as 300 Hz at 4 kHz
+  TEST_ASSERT_TRUE(decimatedGainDb(3700) < -60);
+}
+
+// A strummed chord at 4 kHz: each string with harmonics (a little sharp, like
+// real strings), its own detune and loudness, plus some noise.
+static std::vector<float> chord(const float cents[6], const float amps[6], float noise = 0) {
+  const float fs = 4000;
+  std::vector<float> x(4096, 0.0f);
+  uint32_t seed = 777;
+  for (size_t i = 0; i < x.size(); i++) {
+    float t = i / fs;
+    float v = 0;
+    for (int s = 0; s < 6; s++) {
+      float f = dsp::frequencyOfMidi(dsp::GUITAR_MIDI[s]) * std::pow(2.0f, cents[s] / 1200);
+      float decay = std::exp(-t * (0.5f + s * 0.4f));
+      for (int k = 1; k <= 5; k++) {
+        float stretch = 1 + 0.00005f * k * k;         // inharmonicity
+        float fk = f * k * stretch;
+        if (fk < fs / 2) v += amps[s] * decay * std::sin(2 * PI_F * fk * t + s + k) / k;
+      }
+    }
+    seed = seed * 1103515245u + 12345u;
+    v += noise * (((int32_t)(seed >> 16) % 2000) / 1000.0f - 1);
+    x[i] = v;
+  }
+  return x;
+}
+
+void test_polytune_chord_in_tune() {
+  const float cents[6] = {0, 0, 0, 0, 0, 0};
+  const float amps[6] = {3000, 2500, 2500, 2000, 1500, 1500};
+  auto x = chord(cents, amps, 50);
+  dsp::PolyTuner p(4000, 4096);
+  dsp::StringReading r[6];
+  p.analyse(x.data(), 440, r);
+  for (int s = 0; s < 6; s++) {
+    printf("in tune: string %d  %+.2f c  amp %.0f\n", 6 - s, r[s].cents, r[s].amplitude);
+    TEST_ASSERT_TRUE(r[s].found);
+    TEST_ASSERT_FLOAT_WITHIN(2.0f, 0.0f, r[s].cents);
+  }
+}
+
+void test_polytune_chord_out_of_tune() {
+  const float cents[6] = {-35, 12, -8, 27, -50, 18};
+  const float amps[6] = {3000, 2500, 2500, 2000, 1500, 1500};
+  auto x = chord(cents, amps, 50);
+  dsp::PolyTuner p(4000, 4096);
+  dsp::StringReading r[6];
+  p.analyse(x.data(), 440, r);
+  for (int s = 0; s < 6; s++) {
+    printf("detuned: string %d  expected %+.0f  got %+.2f c\n", 6 - s, cents[s], r[s].cents);
+    TEST_ASSERT_TRUE(r[s].found);
+    TEST_ASSERT_FLOAT_WITHIN(2.0f, cents[s], r[s].cents);
+  }
+}
+
+void test_polytune_missing_string() {
+  const float cents[6] = {0, 0, 0, 0, 0, 0};
+  const float amps[6] = {3000, 2500, 0, 2000, 1500, 1500};   // D string not played
+  auto x = chord(cents, amps, 50);
+  dsp::PolyTuner p(4000, 4096);
+  dsp::StringReading r[6];
+  p.analyse(x.data(), 440, r);
+  TEST_ASSERT_FALSE(r[2].found);
+  TEST_ASSERT_TRUE(r[1].found);
+  TEST_ASSERT_TRUE(r[3].found);
+}
+
+void test_polytune_noise_only() {
+  const float cents[6] = {0, 0, 0, 0, 0, 0};
+  const float amps[6] = {0, 0, 0, 0, 0, 0};
+  auto x = chord(cents, amps, 1.0f);
+  dsp::PolyTuner p(4000, 4096);
+  dsp::StringReading r[6];
+  p.analyse(x.data(), 440, r);
+  for (int s = 0; s < 6; s++) TEST_ASSERT_FALSE(r[s].found);
+}
+
+static void analyseStrum(const int16_t *block, size_t n, dsp::StringReading r[6]) {
+  std::vector<float> x(block + 600, block + n);    // skip the pluck noise, like the app
+  dsp::PolyTuner p(4000, 4096);
+  TEST_ASSERT_TRUE(x.size() >= 4096);
+  p.analyse(x.data(), 440, r);
+}
+
+void test_polytune_ignores_steady_background_tone() {
+  // a steady 256 Hz tone in the room (like the one heard in real recordings)
+  // lies in the B string's band and is stronger than the B string itself
+  const float cents[6] = {0, 0, 0, 0, -25, 0};
+  const float amps[6] = {3000, 2500, 2500, 2000, 300, 1500};
+  auto strum = chord(cents, amps, 20);
+  std::vector<float> before(4096, 0.0f);
+  uint32_t seed = 99;
+  for (size_t i = 0; i < 4096; i++) {
+    float hum = 400 * std::sin(2 * PI_F * 256.0f * i / 4000);
+    seed = seed * 1103515245u + 12345u;
+    before[i] = hum + 20 * (((int32_t)(seed >> 16) % 2000) / 1000.0f - 1);
+    strum[i] += 400 * std::sin(2 * PI_F * 256.0f * (i + 4096) / 4000);
+  }
+  dsp::PolyTuner p(4000, 4096);
+  dsp::StringReading r[6];
+  p.setBackground(before.data(), 0, 440);
+  p.analyse(strum.data(), 440, r);
+  TEST_ASSERT_FLOAT_WITHIN(2.0f, -25.0f, r[4].cents);   // not +62 (the hum)
+}
+
+void test_polytune_real_good_strum() {
+  dsp::StringReading r[6];
+  analyseStrum(STRUM_GOOD, sizeof(STRUM_GOOD) / sizeof(STRUM_GOOD[0]), r);
+  const float expected[6] = {1.9f, 7.9f, -1.2f, 6.5f, 1.4f, 7.2f};
+  for (int s = 0; s < 6; s++) {
+    TEST_ASSERT_TRUE(r[s].found);
+    TEST_ASSERT_FLOAT_WITHIN(0.5f, expected[s], r[s].cents);
+  }
+}
+
+void test_polytune_real_weak_strum() {
+  dsp::StringReading r[6];
+  analyseStrum(STRUM_WEAK, sizeof(STRUM_WEAK) / sizeof(STRUM_WEAK[0]), r);
+  // the app ignores a strum whose loudest string is below MIN_STRUM_AMPLITUDE
+  float strongest = 0;
+  for (int s = 0; s < 6; s++) strongest = std::max(strongest, r[s].amplitude);
+  TEST_ASSERT_TRUE(strongest < dsp::MIN_STRUM_AMPLITUDE);
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -435,5 +584,14 @@ int main() {
   RUN_TEST(test_smoother_faded_note_keeps_its_echo);
   RUN_TEST(test_smoother_new_pluck_after_fade_is_new_note);
   RUN_TEST(test_tuner_real_decaying_high_e);
+  RUN_TEST(test_decimator_passes_guitar_range);
+  RUN_TEST(test_decimator_blocks_what_would_fold_down);
+  RUN_TEST(test_polytune_chord_in_tune);
+  RUN_TEST(test_polytune_chord_out_of_tune);
+  RUN_TEST(test_polytune_missing_string);
+  RUN_TEST(test_polytune_noise_only);
+  RUN_TEST(test_polytune_ignores_steady_background_tone);
+  RUN_TEST(test_polytune_real_good_strum);
+  RUN_TEST(test_polytune_real_weak_strum);
   return UNITY_END();
 }
