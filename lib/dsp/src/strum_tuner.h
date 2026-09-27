@@ -44,7 +44,7 @@ constexpr float MIN_STRUM_AMPLITUDE = 40;
 // partials of wound strings (inharmonicity). The offsets are subtracted from
 // the readings. Default: measured on an unplugged electric guitar tuned with
 // the tuner, average of 3 strums (2026-09-27): each string within +-1 cent of
-// its average. Other guitars or strings: recalibrate (Strum Tuner app, key c).
+// its average. Other guitars or strings: recalibrate (Strum tuner app, key c).
 constexpr float DEFAULT_CALIBRATION[6] = {-23.6f, -8.5f, -4.4f, -1.2f, 5.7f, 1.7f};
 
 struct StringReading {

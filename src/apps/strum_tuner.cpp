@@ -1,4 +1,4 @@
-// Strum Tuner: strum all six open strings, see which ones are out of tune.
+// Strum tuner: strum all six open strings, see which ones are out of tune.
 //
 // Flow: wait for a strum (the level jumps by 10 dB or more), skip the first
 // 150 ms (pluck noise), collect 1.024 s of sound, analyse all strings at once
@@ -58,7 +58,7 @@ enum class State { Waiting, Collecting };
 
 class StrumTunerApp : public App {
  public:
-  const char *name() const override { return "Strum Tuner"; }
+  const char *name() const override { return "Strum tuner"; }
   uint32_t sampleRate() const override { return RATE; }
   int micGain() const override { return settings::getInt("g_poly", 24); }
 
@@ -148,7 +148,7 @@ class StrumTunerApp : public App {
     char right[32];
     snprintf(right, sizeof(right), "%s%s  A4=%.0f", state_ == State::Collecting ? "listening " : "",
              custom_ ? "CAL" : "", a4_);
-    ui::header("Strum Tuner", right);
+    ui::header("Strum tuner", right);
 
     static const char *NAMES[] = {"E", "A", "D", "G", "B", "e"};
     for (int s = 0; s < dsp::GUITAR_STRINGS; s++) {
@@ -329,7 +329,7 @@ class StrumTunerApp : public App {
   }
 
   void drawCalibration(M5Canvas &c) {
-    ui::header("Strum Tuner", "CALIBRATION");
+    ui::header("Strum tuner", "CALIBRATION");
     c.setTextSize(1);
     c.setTextColor(WHITE);
     const char *lines[] = {"1. tune every string with the", "   Guitar tuner", "2. strum all 6 open strings,",

@@ -7,7 +7,7 @@ detector, spectrum analyser, sound level meter and more.
 ## Apps (planned)
 1. **Decibel meter** – calibrated dB SPL, max, average (Leq), A-weighting
 2. **Guitar tuner** – needle gauge ±50 cents, note name
-3. **Strum Tuner** – strum all six open strings, see which are out of tune
+3. **Strum tuner** – strum all six open strings, see which are out of tune
 4. **Spectrum analyser** – green/yellow/red bars reacting to music
 5. **BPM detector** – from music or by tapping (tap tempo)
 6. **Metronome** – clicks with accents, tempo from BPM or tapping
@@ -22,7 +22,7 @@ extra app: the tuner in CHROMATIC mode shows any note and its deviation.)
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner*, *Strum Tuner*, *Spectrum*, *BPM*, *Metronome*, *Intonation* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner*, *Strum tuner*, *Spectrum*, *BPM*, *Metronome*, *Intonation* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 Every app: `h` shows a help page with its keys (big, readable font), `Esc` goes
@@ -48,7 +48,7 @@ small display).
   pluck the needle is thin and light: the string starts sharp and settles
   (the low E by 20–35 cents in the first second). Below 100 Hz the needle is
   smoothed twice as strongly.
-- Strum Tuner: strum all six open strings; after about 1.2 s one column per
+- Strum tuner: strum all six open strings; after about 1.2 s one column per
   string shows the deviation (marker up = sharp, down = flat, green centre
   ±3 cents; an arrow above the column says which way to tune: yellow for
   10–50 cents, red for more than 50; "?" = string not heard). Weak strums,

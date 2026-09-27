@@ -130,7 +130,7 @@ struct Entry {
 static Entry entries[] = {
     {"Decibel meter", "sound level in dB", iconDecibel, decibelMeterApp()},
     {"Guitar tuner", "needle tuner, cents", iconTuner, tunerApp()},
-    {"Strum Tuner", "all strings at once", iconStrumTuner, strumTunerApp()},
+    {"Strum tuner", "all strings at once", iconStrumTuner, strumTunerApp()},
     {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
     {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
     {"Metronome", "click, accents, tap", iconMetronome, metronomeApp()},
