@@ -86,6 +86,8 @@ void loop() {
   M5Cardputer.update();
   handleKeys();
 
+  if (current) current->tick();
+
   // hand all waiting microphone samples to the running app
   if (current) {
     static int16_t chunk[256];

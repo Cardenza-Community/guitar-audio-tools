@@ -36,6 +36,9 @@ class App {
 
   virtual void onKey(const Key &key) {}
 
+  // Called on every pass of the main loop (e.g. to feed the speaker).
+  virtual void tick() {}
+
   // Help page shown on the h key: returns the number of lines.
   virtual int help(const ui::HelpItem *&items) const {
     items = nullptr;

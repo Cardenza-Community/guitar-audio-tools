@@ -23,6 +23,7 @@
 #include "tempo.h"
 #include "songs.h"
 #include "intonation.h"
+#include "wav.h"
 #include <complex>
 #include "weighting.h"
 
@@ -873,6 +874,22 @@ void test_intonation_cents() {
   TEST_ASSERT_FLOAT_WITHIN(0.01f, 5.0f, dsp::intonationCents(220 * std::pow(2.0f, 5 / 1200.0f), 220));
 }
 
+// ---------- WAV header ----------
+
+void test_wav_header_round_trip() {
+  uint8_t h[dsp::WAV_HEADER_BYTES];
+  dsp::makeWavHeader(h, 16000, 32000);        // 1 s of 16-bit mono
+  TEST_ASSERT_EQUAL_MEMORY("RIFF", h, 4);
+  TEST_ASSERT_EQUAL_MEMORY("WAVE", h + 8, 4);
+  TEST_ASSERT_EQUAL(36 + 32000, h[4] | (h[5] << 8) | (h[6] << 16));
+  uint32_t rate = 0, bytes = 0;
+  TEST_ASSERT_TRUE(dsp::readWavHeader(h, rate, bytes));
+  TEST_ASSERT_EQUAL(16000u, rate);
+  TEST_ASSERT_EQUAL(32000u, bytes);
+  h[22] = 2;                                   // stereo: not ours
+  TEST_ASSERT_FALSE(dsp::readWavHeader(h, rate, bytes));
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -953,5 +970,6 @@ int main() {
   RUN_TEST(test_note_meter_too_short_fails);
   RUN_TEST(test_intonation_reference_open_or_harmonic);
   RUN_TEST(test_intonation_cents);
+  RUN_TEST(test_wav_header_round_trip);
   return UNITY_END();
 }

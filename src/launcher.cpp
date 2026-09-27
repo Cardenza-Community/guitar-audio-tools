@@ -136,7 +136,7 @@ static Entry entries[] = {
     {"Metronome", "click, accents, tap", iconMetronome, metronomeApp()},
     {"Intonation", "guitar setup, fret 12", iconIntonation, intonationApp()},
     {"Vocal trainer", "sing the target note", iconVocal, nullptr},
-    {"Recorder", "WAV on the SD card", iconRecorder, nullptr},
+    {"Recorder", "WAV on the SD card", iconRecorder, recorderApp()},
     {"Mic test", "diagnostics", iconMicTest, micTestApp()},
 };
 static const int COUNT = sizeof(entries) / sizeof(entries[0]);

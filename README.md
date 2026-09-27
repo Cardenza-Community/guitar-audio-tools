@@ -22,7 +22,7 @@ extra app: the tuner in CHROMATIC mode shows any note and its deviation.)
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner*, *Strum tuner*, *Spectrum*, *BPM*, *Metronome*, *Intonation* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner*, *Strum tuner*, *Spectrum*, *BPM*, *Metronome*, *Intonation*, *Recorder* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 Every app: `h` shows a help page with its keys (big, readable font), `Esc` goes
@@ -85,6 +85,11 @@ small display).
   deviation from the octave: sharp = move the saddle back (away from the neck),
   flat = forward, within 2 cents = OK. A row shows all six strings.
   `Enter` again, `r` clear all, `;`/`.` gain. The guitar must be tuned first.
+- Recorder: `Enter` record / stop, space play / stop, `,`/`/` previous / next
+  recording, `Del` delete (twice), `;`/`.` microphone gain (volume while
+  playing). WAV files, 16 kHz mono, in `/recordings` on the SD card
+  (REC_0001.wav ...; nothing else on the card is touched). Samples are written in
+  16 KB blocks; a warning appears if the card is too slow and gaps occur.
 - Mic test: `;` / `.` change the analog microphone gain (0–30 dB in 3 dB steps),
   `g` runs an automatic gain test (play a steady tone; the level should rise
   6 dB per step). The serial console (115200 baud) prints the values 4× per second.
@@ -96,9 +101,9 @@ small display).
 | `src/launcher.cpp` | app carousel with icons, list of all apps |
 | `src/app.h` | interface every app implements |
 | `src/apps/` | the apps (`mic_test.cpp`, ...) |
-| `src/services/` | `audio_in` (gapless microphone stream), `settings` (NVS), `ui` (screen helpers) |
+| `src/services/` | `audio_in` (gapless microphone stream), `settings` (NVS), `storage` (SD card), `ui` (screen helpers) |
 | `src/hw/es8311.*` | direct access to the ES8311 codec (gain, register dump) |
-| `lib/dsp/` | signal processing without hardware: levels, weighting, YIN pitch, notes, tuning, strum tuner, FFT, spectrum bands, onsets, tempo, intonation |
+| `lib/dsp/` | signal processing without hardware: levels, weighting, YIN pitch, notes, tuning, strum tuner, FFT, spectrum bands, onsets, tempo, intonation, WAV header |
 | `test/test_dsp/` | unit tests of `lib/dsp`, run on the PC |
 
 ## Building
