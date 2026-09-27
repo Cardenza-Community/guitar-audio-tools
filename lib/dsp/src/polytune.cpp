@@ -169,4 +169,11 @@ void PolyTuner::analyse(const float *x, float a4, StringReading out[GUITAR_STRIN
     out[s].found = out[s].amplitude >= 0.03 * strongest && out[s].amplitude >= MIN_AMPLITUDE;
 }
 
+void applyCalibration(StringReading out[GUITAR_STRINGS], const float offsets[GUITAR_STRINGS]) {
+  for (int s = 0; s < GUITAR_STRINGS; s++) {
+    out[s].cents -= offsets[s];
+    out[s].hz *= std::pow(2.0f, -offsets[s] / 1200);
+  }
+}
+
 }  // namespace dsp

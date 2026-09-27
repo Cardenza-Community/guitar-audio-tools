@@ -1,13 +1,20 @@
 // PolyTune: strum all six open strings, see which ones are out of tune.
 //
 // Flow: wait for a strum (the level jumps by 10 dB or more), skip the first
-// 0.5 s (pluck noise, settling strings), collect 1.024 s of sound, analyse all strings at once
+// 150 ms (pluck noise), collect 1.024 s of sound, analyse all strings at once
 // (lib/dsp/polytune) and show the result until the next strum.
 // The sound is reduced from 16 kHz to 4 kHz first: strings and their 2nd
 // harmonics are below 700 Hz, and 1 s at 4 kHz fits into 16 KB.
 //
 // The last second before the strum is kept as "background": steady tones in
 // the room that were already there are not taken for strings.
+//
+// Calibration (key c): the low strings read flat in a strum compared with the
+// single-string tuner (see dsp::DEFAULT_CALIBRATION). A default correction
+// measured on the author's guitar is used; for another guitar or new strings,
+// tune every string with the tuner, press c and strum 3 times: the average
+// reading of each string becomes its correction (saved; Enter in the
+// calibration screen restores the default).
 //
 // Display: one column per string (E A D G B E). The marker shows the deviation:
 // up = sharp (too high), down = flat, green centre = within 3 cents. More than
@@ -32,16 +39,16 @@ const int RATE = 16000;
 const int FACTOR = 4;                       // 16 kHz -> 4 kHz
 const float LOW_RATE = RATE / FACTOR;
 const size_t LENGTH = 4096;                 // analysed block: 1.024 s at 4 kHz
-// 0.5 s after the strum are skipped: pluck noise, and the strings start
-// sharp and settle (the low E by 20...35 cents in the first second, measured);
-// the single-string tuner is read on the settled tone, too
-const size_t SKIP = 2000;
+// 150 ms after the strum are skipped (pluck noise). A later start (0.5 s) was
+// tried to match the settling strings, but read the low strings flatter.
+const size_t SKIP = 600;
 const size_t LEVEL_BLOCK = 512;             // level measured every 32 ms (16 kHz samples)
 const float ONSET_JUMP_DB = 10;
 const float ONSET_MIN_DBFS = -58;
 const float IN_TUNE_CENTS = 3;
 const float ARROW_CENTS = 10;               // from here an arrow says which way to tune
 const bool DUMP_BLOCKS = false;             // development: print analysed blocks
+const int CAL_STRUMS = 3;                   // strums averaged by a calibration
 
 // column geometry
 const int COLUMN_WIDTH = 40, MID_Y = 60;
@@ -64,6 +71,8 @@ class PolyTuneApp : public App {
     ringFull_ = false;
     decimated_.assign(LEVEL_BLOCK / FACTOR + 1, 0);
     a4_ = settings::getFloat("a4", 440.0f);
+    loadCalibration();
+    calibrating_ = false;
     state_ = State::Waiting;
     haveResult_ = false;
     weak_ = false;
@@ -103,17 +112,23 @@ class PolyTuneApp : public App {
     static const ui::HelpItem HELP[] = {
         {"strum", "all 6 open strings"},
         {"marker", "up: sharp, down: flat"},
-        {"arrow", "tune: yellow 10-50 c, red"},
-        {"", "more than 50 cents"},
+        {"arrow", "yellow 10-50 c, red >50 c"},
         {"?", "string not heard"},
         {"; .", "microphone gain + / -"},
         {"Enter", "clear the result"},
+        {"c", "calibrate to your guitar"},
     };
     items = HELP;
     return sizeof(HELP) / sizeof(HELP[0]);
   }
 
   void onKey(const Key &key) override {
+    if (calibrating_) {
+      if (key.ch == 'c') calibrating_ = false;
+      if (key.enter) restoreDefaultCalibration();
+      return;
+    }
+    if (key.ch == 'c') startCalibration();
     if (key.ch == ';' || key.ch == '.') {
       es8311::setPgaGain(es8311::pgaGain() + (key.ch == ';' ? 3 : -3));
       settings::putInt("g_poly", es8311::pgaGain());
@@ -126,8 +141,13 @@ class PolyTuneApp : public App {
   }
 
   void draw(M5Canvas &c) override {
-    char right[24];
-    snprintf(right, sizeof(right), "%s  A4=%.0f", state_ == State::Collecting ? "listening" : "", a4_);
+    if (calibrating_) {
+      drawCalibration(c);
+      return;
+    }
+    char right[32];
+    snprintf(right, sizeof(right), "%s%s  A4=%.0f", state_ == State::Collecting ? "listening " : "",
+             custom_ ? "CAL" : "", a4_);
     ui::header("PolyTune", right);
 
     static const char *NAMES[] = {"E", "A", "D", "G", "B", "e"};
@@ -242,8 +262,13 @@ class PolyTuneApp : public App {
     // a weak strum (or a handling noise) keeps the previous result on screen
     weak_ = strongest < dsp::MIN_STRUM_AMPLITUDE;
     if (!weak_) {
-      std::copy(r, r + dsp::GUITAR_STRINGS, result_);
-      haveResult_ = true;
+      if (calibrating_) {
+        calibrate(r);
+      } else {
+        dsp::applyCalibration(r, offsets_);
+        std::copy(r, r + dsp::GUITAR_STRINGS, result_);
+        haveResult_ = true;
+      }
     }
     Serial.printf("analysis %lu ms:", (unsigned long)(millis() - start));
     for (int s = 0; s < dsp::GUITAR_STRINGS; s++)
@@ -251,6 +276,80 @@ class PolyTuneApp : public App {
     if (weak_) Serial.print("  (too weak)");
     Serial.println();
     if (DUMP_BLOCKS) dumpBlock();
+  }
+
+  // ---------- calibration ----------
+
+  void loadCalibration() {
+    custom_ = settings::getInt("pt_cal", 0);
+    for (int s = 0; s < dsp::GUITAR_STRINGS; s++) {
+      char key[12];
+      snprintf(key, sizeof(key), "pt_cal%d", s);
+      offsets_[s] = custom_ ? settings::getFloat(key, dsp::DEFAULT_CALIBRATION[s]) : dsp::DEFAULT_CALIBRATION[s];
+    }
+  }
+
+  void startCalibration() {
+    calibrating_ = true;
+    calCount_ = 0;
+    calMessage_ = "";
+    for (float &v : calSum_) v = 0;
+  }
+
+  // one strum of the tuned guitar: all six strings must be heard
+  void calibrate(const dsp::StringReading r[dsp::GUITAR_STRINGS]) {
+    for (int s = 0; s < dsp::GUITAR_STRINGS; s++) {
+      if (!r[s].found || fabsf(r[s].cents) > 50) {
+        calMessage_ = "not all strings heard - again";
+        return;
+      }
+    }
+    for (int s = 0; s < dsp::GUITAR_STRINGS; s++) calSum_[s] += r[s].cents;
+    calMessage_ = "";
+    if (++calCount_ < CAL_STRUMS) return;
+    for (int s = 0; s < dsp::GUITAR_STRINGS; s++) {
+      offsets_[s] = calSum_[s] / CAL_STRUMS;
+      char key[12];
+      snprintf(key, sizeof(key), "pt_cal%d", s);
+      settings::putFloat(key, offsets_[s]);
+    }
+    settings::putInt("pt_cal", 1);
+    custom_ = true;
+    calibrating_ = false;
+    haveResult_ = false;
+    Serial.printf("calibration saved: %.1f %.1f %.1f %.1f %.1f %.1f\n", offsets_[0], offsets_[1],
+                  offsets_[2], offsets_[3], offsets_[4], offsets_[5]);
+  }
+
+  void restoreDefaultCalibration() {
+    settings::putInt("pt_cal", 0);
+    loadCalibration();
+    calibrating_ = false;
+    haveResult_ = false;
+  }
+
+  void drawCalibration(M5Canvas &c) {
+    ui::header("PolyTune", "CALIBRATION");
+    c.setTextSize(1);
+    c.setTextColor(WHITE);
+    const char *lines[] = {"1. tune every string with the", "   Guitar tuner", "2. strum all 6 open strings,",
+                           "   3 times, let them ring"};
+    for (int i = 0; i < 4; i++) {
+      c.setCursor(6, 20 + i * 11);
+      c.print(lines[i]);
+    }
+    c.setTextSize(2);
+    c.setTextColor(YELLOW);
+    c.setCursor(6, 70);
+    c.printf("strum %d / %d", std::min(calCount_ + 1, CAL_STRUMS), CAL_STRUMS);
+    c.setTextSize(1);
+    c.setTextColor(ORANGE);
+    c.setCursor(6, 94);
+    c.print(state_ == State::Collecting ? "listening..." : calMessage_);
+    c.setTextColor(WHITE);
+    c.setCursor(6, 108);
+    c.print(custom_ ? "now: your calibration" : "now: default calibration");
+    ui::footer("c: cancel   Enter: default values");
   }
 
   // Development aid: prints the analysed block (4 kHz) so it can be replayed
@@ -277,6 +376,12 @@ class PolyTuneApp : public App {
   dsp::StringReading result_[dsp::GUITAR_STRINGS];
   bool haveResult_ = false;
   bool weak_ = false;                 // the last strum was too quiet
+  float offsets_[dsp::GUITAR_STRINGS];  // calibration, subtracted from readings
+  bool custom_ = false;               // the user's calibration (not the default)
+  bool calibrating_ = false;
+  int calCount_ = 0;
+  float calSum_[dsp::GUITAR_STRINGS];
+  const char *calMessage_ = "";
   float a4_ = 440;
 
   std::vector<float> levels_;

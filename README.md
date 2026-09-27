@@ -41,14 +41,18 @@ small display).
   pluck the needle is thin and light: the string starts sharp and settles
   (the low E by 20–35 cents in the first second). Below 100 Hz the needle is
   smoothed twice as strongly.
-- PolyTune: strum all six open strings; after about 1.5 s (0.5 s skipped:
-  the strings start sharp and settle) one column per
+- PolyTune: strum all six open strings; after about 1.2 s one column per
   string shows the deviation (marker up = sharp, down = flat, green centre
   ±3 cents; an arrow above the column says which way to tune: yellow for
   10–50 cents, red for more than 50; "?" = string not heard). Weak strums,
   handling noise and steady background tones in the room are ignored.
-  `;`/`.` microphone gain, `Enter` clears the result. Accuracy on synthetic chords ±1.3 cents; real strums
-  matched the single-string tuner.
+  `;`/`.` microphone gain, `Enter` clears the result, `c` calibration.
+  Accuracy on synthetic chords ±1.3 cents. In a real strum the low strings read
+  flat compared with the single-string tuner (lighter pluck = less pitch glide,
+  inharmonic wound strings): a default correction measured on an unplugged
+  electric guitar is applied (E −23.6, A −8.5, D −4.4, G −1.2, B +5.7,
+  E +1.7 cents). For another guitar or new strings: tune with the tuner,
+  press `c`, strum 3 times (saved; `Enter` in that screen restores the default).
 - Spectrum: 16 bars 60 Hz – 16 kHz of green/yellow/red blocks, FFT of 2048
   samples at 32 kHz every 32 ms, bars fall slowly, peaks hold 0.8 s. Automatic
   sensitivity: the scale jumps to the loudest band and recovers 6 dB/s.

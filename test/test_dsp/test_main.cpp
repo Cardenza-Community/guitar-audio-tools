@@ -549,6 +549,17 @@ void test_polytune_real_good_strum() {
   }
 }
 
+void test_polytune_default_calibration_on_tuned_guitar() {
+  dsp::StringReading r[6];
+  analyseStrum(STRUM_TUNED, sizeof(STRUM_TUNED) / sizeof(STRUM_TUNED[0]), r);
+  TEST_ASSERT_FLOAT_WITHIN(1.0f, -22.8f, r[0].cents);           // before: low E reads flat
+  dsp::applyCalibration(r, dsp::DEFAULT_CALIBRATION);
+  for (int s = 0; s < 6; s++) {
+    TEST_ASSERT_TRUE(r[s].found);
+    TEST_ASSERT_FLOAT_WITHIN(1.5f, 0.0f, r[s].cents);            // after: all in tune
+  }
+}
+
 void test_polytune_real_weak_strum() {
   dsp::StringReading r[6];
   analyseStrum(STRUM_WEAK, sizeof(STRUM_WEAK) / sizeof(STRUM_WEAK[0]), r);
@@ -846,6 +857,7 @@ int main() {
   RUN_TEST(test_polytune_noise_only);
   RUN_TEST(test_polytune_ignores_steady_background_tone);
   RUN_TEST(test_polytune_real_good_strum);
+  RUN_TEST(test_polytune_default_calibration_on_tuned_guitar);
   RUN_TEST(test_polytune_real_weak_strum);
   RUN_TEST(test_fft_matches_slow_dft);
   RUN_TEST(test_spectrum_sine_lights_its_band);

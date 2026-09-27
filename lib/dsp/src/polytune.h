@@ -38,6 +38,15 @@ constexpr float MIN_AMPLITUDE = 12;
 // A strum whose loudest string is below this is too weak to measure.
 constexpr float MIN_STRUM_AMPLITUDE = 40;
 
+// Calibration: in a strum the low strings read flat compared with the
+// single-string tuner - each string gets a lighter pluck (less pitch glide, the
+// tone starts less sharp) and the tuner's YIN hears the slightly sharp upper
+// partials of wound strings (inharmonicity). The offsets are subtracted from
+// the readings. Default: measured on an unplugged electric guitar tuned with
+// the tuner, average of 3 strums (2026-09-27): each string within +-1 cent of
+// its average. Other guitars or strings: recalibrate (PolyTune app, key c).
+constexpr float DEFAULT_CALIBRATION[6] = {-23.6f, -8.5f, -4.4f, -1.2f, 5.7f, 1.7f};
+
 struct StringReading {
   bool found = false;    // a clear peak near the string's note
   float hz = 0;
@@ -86,5 +95,8 @@ class PolyTuner {
   bool hasBackground_ = false;
   std::vector<float> background_[GUITAR_STRINGS * 2];   // coarse scans, per band
 };
+
+// Subtracts the calibration offsets (cents) from the readings.
+void applyCalibration(StringReading out[GUITAR_STRINGS], const float offsets[GUITAR_STRINGS]);
 
 }  // namespace dsp
