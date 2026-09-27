@@ -105,8 +105,8 @@ class IntonationApp : public App {
     c.setTextSize(2);
     c.setTextColor(YELLOW);
     c.setCursor(4, 16);
-    if (step_ == Step::Reference) c.print("1: OPEN string");
-    else c.printf("2: %s at FRET 12", STRING_NAMES[reference_.string]);
+    if (step_ == Step::Reference) c.print("OPEN string");
+    else c.printf("%s at FRET 12", STRING_NAMES[reference_.string]);
     c.setTextSize(1);
     c.setTextColor(WHITE);
     c.setCursor(4, 34);
@@ -138,24 +138,27 @@ class IntonationApp : public App {
       else c.print("flat: move the saddle FORWARD (to neck)");
     }
 
-    // all strings
+    // all strings: name above, result below, big letters
+    c.setTextSize(2);
     for (int s = 0; s < dsp::GUITAR_STRINGS; s++) {
-      int x = s * 40 + 2;
-      c.setTextSize(1);
-      c.setCursor(x, 100);
+      int centre = s * 40 + 20;
       c.setTextColor(YELLOW);
+      c.setCursor(centre - c.textWidth(STRING_NAMES[s]) / 2, 90);
       c.print(STRING_NAMES[s]);
-      c.setCursor(x, 111);
       float r = results_[s];
+      char text[8];
       if (isnan(r)) {
         c.setTextColor(WHITE);
-        c.print("-");
+        snprintf(text, sizeof(text), "-");
       } else {
         c.setTextColor(fabsf(r) <= OK_CENTS ? GREEN : fabsf(r) <= CLOSE_CENTS ? YELLOW : ORANGE);
-        if (fabsf(r) <= OK_CENTS) c.print("OK");
-        else c.printf("%+.0f", r);
+        if (fabsf(r) <= OK_CENTS) snprintf(text, sizeof(text), "OK");
+        else snprintf(text, sizeof(text), "%+d", (int)constrain(lroundf(r), -99, 99));   // 3 characters fit
       }
+      c.setCursor(centre - c.textWidth(text) / 2, 107);
+      c.print(text);
     }
+    c.setTextSize(1);
     ui::footerHelp();
   }
 
