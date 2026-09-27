@@ -642,6 +642,24 @@ void test_spectrum_low_and_high_tones() {
   }
 }
 
+// Third-octave mode: every ISO centre frequency lights its own band.
+void test_spectrum_third_octaves() {
+  dsp::SpectrumBands sb(32000, 4096, dsp::THIRD_OCTAVE_BANDS, dsp::THIRD_OCTAVE_MIN_HZ, dsp::THIRD_OCTAVE_MAX_HZ);
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, 50.1f, sb.centreHz(0));
+  TEST_ASSERT_FLOAT_WITHIN(1.0f, 1000.0f, sb.centreHz(13));
+  TEST_ASSERT_FLOAT_WITHIN(20.0f, 15849.0f, sb.centreHz(25));
+  std::vector<float> db(sb.bands());
+  const float tones[] = {50, 63, 80, 125, 250, 1000, 4000, 10000, 15000};
+  const int expected[] = {0, 1, 2, 4, 7, 13, 19, 23, 25};
+  for (int t = 0; t < 9; t++) {
+    std::vector<int16_t> x(4096);
+    for (size_t i = 0; i < x.size(); i++) x[i] = (int16_t)std::lround(10000 * std::sin(2 * PI_F * tones[t] * i / 32000));
+    sb.analyse(x.data(), db.data());
+    int loudest = (int)(std::max_element(db.begin(), db.end()) - db.begin());
+    TEST_ASSERT_EQUAL(expected[t], loudest);
+  }
+}
+
 void test_spectrum_silence() {
   dsp::SpectrumBands sb(32000, 2048, 16, 40, 16000);
   std::vector<int16_t> x(2048, 0);
@@ -1101,6 +1119,7 @@ int main() {
   RUN_TEST(test_spectrum_sine_lights_its_band);
   RUN_TEST(test_spectrum_low_and_high_tones);
   RUN_TEST(test_spectrum_silence);
+  RUN_TEST(test_spectrum_third_octaves);
   RUN_TEST(test_autorange_jumps_to_music);
   RUN_TEST(test_autorange_comes_down_slowly);
   RUN_TEST(test_autorange_silence_floor);

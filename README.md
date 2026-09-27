@@ -68,6 +68,8 @@ small display).
   samples at 32 kHz every 32 ms, bars fall slowly, peaks hold 0.8 s. Automatic
   sensitivity: the scale jumps to the loudest band and recovers 6 dB/s.
   `Enter` (or `p`) peaks on/off, `,` / `/` (or `r`) bar range 20 / 30 / 40 dB.
+  `m` switches to 26 ISO third-octave bands 50 Hz – 16 kHz (FFT of 4096 samples)
+  for finding feedback or room resonances; the mode is remembered.
 - BPM: AUTO listens to music (spectral-flux onsets in ~20 bands, a pulse comb
   with the half/double tempo "family" chooses the beat, autocorrelation over
   2–4 beats refines it; first reading after ~3 s, then twice per second over up

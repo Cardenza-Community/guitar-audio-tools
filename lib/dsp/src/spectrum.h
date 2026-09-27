@@ -14,6 +14,15 @@
 
 namespace dsp {
 
+// ISO third-octave bands with the centres 50, 63, 80, 100 ... 12.5k, 16k Hz:
+// SpectrumBands(rate, fftSize, THIRD_OCTAVE_BANDS, THIRD_OCTAVE_MIN_HZ,
+// THIRD_OCTAVE_MAX_HZ). The centres are 1000 * 10^(n/10), the edges half a
+// step (10^(1/20)) away. The 50 Hz band is only 11 Hz wide: it needs an FFT
+// of 4096 samples at 32 kHz (bins 7.8 Hz apart).
+constexpr int THIRD_OCTAVE_BANDS = 26;
+constexpr float THIRD_OCTAVE_MIN_HZ = 44.668f;    // 1000 * 10^(-13.5/10)
+constexpr float THIRD_OCTAVE_MAX_HZ = 17782.8f;   // 1000 * 10^(12.5/10), above 16 kHz: cut off
+
 class SpectrumBands {
  public:
   // bands spaced evenly on a log scale between minHz and maxHz
