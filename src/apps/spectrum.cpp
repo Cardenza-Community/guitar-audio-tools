@@ -80,7 +80,7 @@ class SpectrumApp : public App {
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
         {"Enter", "peaks on / off"},
-        {", /", "bar range 20 / 30 / 40 dB"},
+        {", /", "bar range 20/30/40 dB"},
         {"", "(smaller = livelier bars)"},
         {nullptr, "bars: 60 Hz (left) - 16 kHz"},
         {nullptr, "the sensitivity is automatic"},
