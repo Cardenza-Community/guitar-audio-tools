@@ -268,7 +268,8 @@ class RecorderApp : public App {
 
   void stopRecording() {
     flush();
-    uint32_t dataBytes = file_.size() - dsp::WAV_HEADER_BYTES;
+    // position(), not size(): size() of a file open for writing is still 0
+    uint32_t dataBytes = file_.position() - dsp::WAV_HEADER_BYTES;
     uint8_t header[dsp::WAV_HEADER_BYTES];
     dsp::makeWavHeader(header, RATE, dataBytes);
     file_.seek(0);
