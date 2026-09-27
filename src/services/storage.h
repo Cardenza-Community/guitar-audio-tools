@@ -1,6 +1,6 @@
 // SD card (the slot of the Cardputer ADV, SPI) and the recordings on it.
-// Recordings live in /recordings as REC_0001.wav, REC_0002.wav ...;
-// nothing else on the card is touched.
+// Recordings live in /recordings as REC_0001.wav, REC_0002.wav ... or under a
+// name given after recording; nothing else on the card is touched.
 #pragma once
 #include <Arduino.h>
 #include <vector>
@@ -23,6 +23,11 @@ std::vector<Recording> recordings();
 String newRecordingPath();
 
 bool remove(const String &path);
+bool exists(const String &path);
+bool rename(const String &from, const String &to);
+
+// The path of a recording with this name (e.g. "riff 1" -> /recordings/riff 1.wav).
+String recordingPath(const String &name);
 
 // Free space in megabytes.
 uint32_t freeMegabytes();

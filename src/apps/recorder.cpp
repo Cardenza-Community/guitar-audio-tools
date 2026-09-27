@@ -7,6 +7,8 @@
 // Playback: the microphone is stopped (it shares the I2S bus with the speaker),
 // the file is streamed to the speaker in blocks (three buffers take turns),
 // then the microphone starts again.
+// After a recording its name can be typed (letters, digits, - _ and spaces;
+// Enter saves, an empty name or Esc keeps REC_0005 etc.).
 // Keys: Enter record / stop, space play / stop, , / previous / next recording,
 //       Del delete (press twice), ; . microphone gain (volume while playing).
 #include <SD.h>
@@ -27,6 +29,7 @@ const int RATE = 16000;
 const size_t WRITE_BLOCK = 8192;         // samples written at once (16 KB)
 const size_t PLAY_BLOCK = 2048;          // samples per speaker buffer
 const uint32_t DELETE_CONFIRM_MS = 3000;
+const size_t MAX_NAME = 20;
 
 enum class Mode { Idle, Recording, Playing };
 
@@ -41,6 +44,7 @@ class RecorderApp : public App {
     refresh();
     selected_ = list_.empty() ? -1 : (int)list_.size() - 1;
     mode_ = Mode::Idle;
+    naming_ = false;
     message_ = haveCard_ ? "" : "no SD card";
     volume_ = settings::getInt("rec_vol", 7);
   }
@@ -83,8 +87,14 @@ class RecorderApp : public App {
     return sizeof(HELP) / sizeof(HELP[0]);
   }
 
+  bool capturesKeys() const override { return naming_; }
+
   void onKey(const Key &key) override {
     if (!haveCard_) return;
+    if (naming_) {
+      nameKey(key);
+      return;
+    }
     if (key.enter) {
       if (mode_ == Mode::Idle) startRecording();
       else if (mode_ == Mode::Recording) stopRecording();
@@ -124,6 +134,10 @@ class RecorderApp : public App {
   }
 
   void draw(M5Canvas &c) override {
+    if (naming_) {
+      drawNaming(c);
+      return;
+    }
     char right[24];
     if (haveCard_) snprintf(right, sizeof(right), "%u MB free", (unsigned)freeMb_);
     else snprintf(right, sizeof(right), "no SD");
@@ -159,11 +173,12 @@ class RecorderApp : public App {
       }
     }
 
-    // the selected recording
+    // the selected recording (long names in small letters)
     c.setTextSize(2);
     c.setCursor(4, 66);
     if (selected_ >= 0) {
       const storage::Recording &r = list_[selected_];
+      if (r.name.length() > 10) c.setTextSize(1);
       c.setTextColor(YELLOW);
       c.printf("%s ", selected_ > 0 ? "<" : " ");
       c.setTextColor(WHITE);
@@ -249,8 +264,79 @@ class RecorderApp : public App {
     file_.close();
     mode_ = Mode::Idle;
     refresh();
-    selected_ = (int)list_.size() - 1;                 // the new recording
     Serial.printf("recorded %s, %u bytes\n", path_.c_str(), (unsigned)dataBytes);
+    selectPath(path_);                                  // the new recording
+    naming_ = true;                                     // ask for a name
+    name_ = "";
+    message_ = "";
+  }
+
+  void selectPath(const String &path) {
+    for (size_t i = 0; i < list_.size(); i++)
+      if (list_[i].path == path) selected_ = (int)i;
+  }
+
+  // ---------- naming a new recording ----------
+
+  void nameKey(const Key &key) {
+    if (key.enter) {
+      finishNaming();
+      return;
+    }
+    if (key.del && name_.length() > 0) name_.remove(name_.length() - 1);
+    if (key.ch == '`') {                                // Esc: keep the automatic name
+      naming_ = false;
+      return;
+    }
+    char ch = key.ch;
+    bool allowed = isalnum((unsigned char)ch) || ch == '-' || ch == '_' || ch == ' ';
+    if (allowed && name_.length() < MAX_NAME) name_ += ch;
+  }
+
+  void finishNaming() {
+    name_.trim();
+    if (name_.length() == 0) {                          // keep REC_xxxx
+      naming_ = false;
+      return;
+    }
+    String target = storage::recordingPath(name_);
+    if (storage::exists(target)) {
+      message_ = "this name exists - another one";
+      return;
+    }
+    if (!storage::rename(path_, target)) {
+      message_ = "could not rename";
+      return;
+    }
+    refresh();
+    selectPath(target);
+    naming_ = false;
+    message_ = "";
+  }
+
+  void drawNaming(M5Canvas &c) {
+    ui::header("Recorder", "SAVED");
+    c.setTextSize(1);
+    c.setTextColor(WHITE);
+    c.setCursor(4, 18);
+    c.print("Name the recording:");
+    c.drawRect(2, 30, 236, 24, YELLOW);
+    c.setTextSize(2);
+    c.setCursor(6, 35);
+    c.print(name_);
+    if ((millis() / 400) % 2) c.print("_");               // blinking cursor
+    c.setTextSize(1);
+    c.setCursor(4, 60);
+    c.print("Enter: save");
+    c.setCursor(4, 71);
+    c.printf("empty or Esc: keep %s", list_.empty() || selected_ < 0 ? "" : list_[selected_].name.c_str());
+    c.setCursor(4, 82);
+    c.print("letters, digits, - _ and spaces");
+    if (message_[0]) {
+      c.setTextColor(ORANGE);
+      c.setCursor(4, 98);
+      c.print(message_);
+    }
   }
 
   // ---------- playback ----------
@@ -323,6 +409,8 @@ class RecorderApp : public App {
   uint32_t played_ = 0, playRate_ = RATE;
   bool fileDone_ = false;
   int volume_ = 7;
+  bool naming_ = false;
+  String name_;
 };
 
 RecorderApp instance;

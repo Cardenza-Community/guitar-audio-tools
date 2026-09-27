@@ -39,6 +39,10 @@ class App {
   // Called on every pass of the main loop (e.g. to feed the speaker).
   virtual void tick() {}
 
+  // true while the app wants every key, e.g. for typing a name: then h and
+  // Esc ("`") are passed to the app too instead of opening help / going back.
+  virtual bool capturesKeys() const { return false; }
+
   // Help page shown on the h key: returns the number of lines.
   virtual int help(const ui::HelpItem *&items) const {
     items = nullptr;

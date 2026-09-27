@@ -61,7 +61,9 @@ void handleKeys() {
   }
   for (char ch : state.word) {
     key.ch = ch;
-    if (ch == '`') {              // Esc
+    if (current && current->capturesKeys()) {
+      deliver(key);               // typing: every key goes to the app
+    } else if (ch == '`') {       // Esc
       if (current) closeApp();
     } else if (ch == 'h') {       // help page
       showingHelp = true;

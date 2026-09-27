@@ -27,7 +27,7 @@ std::vector<Recording> recordings() {
   if (!dir) return list;
   for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
     String name = f.name();
-    if (!f.isDirectory() && name.startsWith("REC_") && name.endsWith(".wav")) {
+    if (!f.isDirectory() && name.endsWith(".wav")) {
       list.push_back({String(DIR) + "/" + name, name.substring(0, name.length() - 4), (uint32_t)f.size()});
     }
     f.close();
@@ -39,13 +39,17 @@ std::vector<Recording> recordings() {
 
 String newRecordingPath() {
   int highest = 0;
-  for (const Recording &r : recordings()) highest = std::max(highest, (int)r.name.substring(4).toInt());
+  for (const Recording &r : recordings())
+    if (r.name.startsWith("REC_")) highest = std::max(highest, (int)r.name.substring(4).toInt());
   char path[40];
   snprintf(path, sizeof(path), "%s/REC_%04d.wav", DIR, highest + 1);
   return String(path);
 }
 
 bool remove(const String &path) { return mounted && SD.remove(path); }
+bool exists(const String &path) { return mounted && SD.exists(path); }
+bool rename(const String &from, const String &to) { return mounted && SD.rename(from, to); }
+String recordingPath(const String &name) { return String(DIR) + "/" + name + ".wav"; }
 
 uint32_t freeMegabytes() {
   if (!mounted) return 0;

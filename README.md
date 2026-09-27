@@ -88,7 +88,8 @@ small display).
 - Recorder: `Enter` record / stop, space play / stop, `,`/`/` previous / next
   recording, `Del` delete (twice), `;`/`.` microphone gain (volume while
   playing). WAV files, 16 kHz mono, in `/recordings` on the SD card
-  (REC_0001.wav ...; nothing else on the card is touched). Samples are written in
+  (REC_0001.wav ..., or a name typed right after recording: `Enter` saves, an
+  empty name or `Esc` keeps REC_...; nothing else on the card is touched). Samples are written in
   16 KB blocks; a warning appears if the card is too slow and gaps occur.
 - Mic test: `;` / `.` change the analog microphone gain (0–30 dB in 3 dB steps),
   `g` runs an automatic gain test (play a steady tone; the level should rise
