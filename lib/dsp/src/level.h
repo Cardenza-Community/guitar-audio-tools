@@ -23,4 +23,11 @@ int peakAbs(const int16_t *x, size_t count);
 // RMS in decibels relative to full scale (0 dBFS = loudest possible).
 float toDbfs(float rmsValue);
 
+// Normalizing a recording: the gain that brings its loudest sample (`peak`)
+// to `targetPeak` (29000 = -1 dBFS), at most `maxGainDb` (so a nearly silent
+// recording is not turned into loud noise), never below 1.
+float normalizeGain(int peak, float targetPeak = 29000, float maxGainDb = 30);
+// Multiplies samples by gain, clipping at the 16-bit limits.
+void applyGain(int16_t *x, size_t count, float gain);
+
 }  // namespace dsp

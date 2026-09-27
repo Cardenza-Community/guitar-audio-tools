@@ -7,7 +7,10 @@
 // Playback: the microphone is stopped (it shares the I2S bus with the speaker),
 // the file is streamed to the speaker in blocks (three buffers take turns),
 // then the microphone starts again.
-// After a recording its name can be typed (letters, digits, - _ and spaces;
+// After a recording it is normalized: the whole file is amplified so that its
+// loudest moment reaches -1 dBFS (at most +30 dB) - the microphone is weak, so
+// recordings are otherwise quiet on the speaker and on a PC. Then its name can
+// be typed (letters, digits, - _ and spaces;
 // Enter saves, an empty name or Esc keeps REC_0005 etc.).
 // Keys: Enter record / stop, space play / stop, , / previous / next recording,
 //       Del delete (press twice), ; . microphone gain (volume while playing).
@@ -31,7 +34,8 @@ const size_t PLAY_BLOCK = 2048;          // samples per speaker buffer
 const uint32_t DELETE_CONFIRM_MS = 3000;
 const size_t MAX_NAME = 20;
 
-enum class Mode { Idle, Recording, Playing };
+enum class Mode { Idle, Recording, Normalizing, Playing };
+const size_t NORMALIZE_BLOCK = 4096;     // samples per step (4 steps per loop pass)
 
 class RecorderApp : public App {
  public:
@@ -51,6 +55,7 @@ class RecorderApp : public App {
 
   void exit() override {
     if (mode_ == Mode::Recording) stopRecording();
+    while (mode_ == Mode::Normalizing) normalizeStep();  // finish it before leaving
     if (mode_ == Mode::Playing) stopPlaying(false);
     std::vector<int16_t>().swap(block_);
   }
@@ -62,6 +67,7 @@ class RecorderApp : public App {
     level_ = std::max(level_ * 0.9f, (float)peak);
     if (peak > 32000) clipMs_ = millis();
     if (mode_ != Mode::Recording) return;
+    recPeak_ = std::max(recPeak_, peak);
     for (size_t i = 0; i < count; i++) {
       block_.push_back(samples[i]);
       if (block_.size() == WRITE_BLOCK) flush();
@@ -71,6 +77,7 @@ class RecorderApp : public App {
 
   void tick() override {
     if (mode_ == Mode::Playing) feedSpeaker();
+    if (mode_ == Mode::Normalizing) normalizeStep();
   }
 
   int help(const ui::HelpItem *&items) const override {
@@ -154,6 +161,10 @@ class RecorderApp : public App {
       c.setTextColor(GREEN);
       c.print("PLAY ");
       printTime(c, played_ / playRate_);
+    } else if (mode_ == Mode::Normalizing) {
+      c.setTextColor(YELLOW);
+      c.printf("LOUDER %d%%", (int)(100.0f * (normPos_ - dsp::WAV_HEADER_BYTES) /
+                                     std::max<uint32_t>(1, normEnd_ - dsp::WAV_HEADER_BYTES)));
     } else {
       c.setTextColor(WHITE);
       c.print(haveCard_ ? "READY" : "NO SD CARD");
@@ -244,6 +255,7 @@ class RecorderApp : public App {
     block_.clear();
     block_.reserve(WRITE_BLOCK);
     recorded_ = 0;
+    recPeak_ = 0;
     droppedAtStart_ = audio_in::droppedSamples();
     message_ = "";
     mode_ = Mode::Recording;
@@ -262,9 +274,47 @@ class RecorderApp : public App {
     file_.seek(0);
     file_.write(header, sizeof(header));
     file_.close();
+    normGain_ = dsp::normalizeGain(recPeak_);
+    Serial.printf("recorded %s, %u bytes, peak %d, gain %.1f dB\n", path_.c_str(), (unsigned)dataBytes,
+                  recPeak_, 20 * log10f(normGain_));
+    if (normGain_ > 1.12f) {                            // more than 1 dB to gain
+      file_ = SD.open(path_, "r+");
+      if (file_) {
+        normPos_ = dsp::WAV_HEADER_BYTES;
+        normEnd_ = file_.size();
+        normBuffer_.assign(NORMALIZE_BLOCK, 0);
+        mode_ = Mode::Normalizing;
+        return;
+      }
+    }
+    finishRecording();
+  }
+
+  // amplifies a few blocks of the file in place, then continues next pass
+  void normalizeStep() {
+    for (int step = 0; step < 4 && normPos_ < normEnd_; step++) {
+      size_t bytes = std::min<size_t>(NORMALIZE_BLOCK * sizeof(int16_t), normEnd_ - normPos_);
+      file_.seek(normPos_);
+      int got = file_.read((uint8_t *)normBuffer_.data(), bytes);
+      if (got <= 0) {
+        normPos_ = normEnd_;
+        break;
+      }
+      dsp::applyGain(normBuffer_.data(), got / sizeof(int16_t), normGain_);
+      file_.seek(normPos_);
+      file_.write((const uint8_t *)normBuffer_.data(), got);
+      normPos_ += got;
+    }
+    if (normPos_ >= normEnd_) {
+      file_.close();
+      std::vector<int16_t>().swap(normBuffer_);
+      finishRecording();
+    }
+  }
+
+  void finishRecording() {
     mode_ = Mode::Idle;
     refresh();
-    Serial.printf("recorded %s, %u bytes\n", path_.c_str(), (unsigned)dataBytes);
     selectPath(path_);                                  // the new recording
     naming_ = true;                                     // ask for a name
     name_ = "";
@@ -403,6 +453,10 @@ class RecorderApp : public App {
   String path_;
   std::vector<int16_t> block_;
   uint32_t recorded_ = 0, droppedAtStart_ = 0;
+  int recPeak_ = 0;
+  float normGain_ = 1;
+  uint32_t normPos_ = 0, normEnd_ = 0;
+  std::vector<int16_t> normBuffer_;
 
   std::vector<int16_t> playBuffers_[3];
   int nextBuffer_ = 0;

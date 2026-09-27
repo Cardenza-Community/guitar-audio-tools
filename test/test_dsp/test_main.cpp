@@ -890,6 +890,17 @@ void test_wav_header_round_trip() {
   TEST_ASSERT_FALSE(dsp::readWavHeader(h, rate, bytes));
 }
 
+void test_normalize_gain() {
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 29000.0f / 2900, dsp::normalizeGain(2900));   // +20 dB
+  TEST_ASSERT_FLOAT_WITHIN(0.1f, 31.62f, dsp::normalizeGain(10));               // limited to 30 dB
+  TEST_ASSERT_EQUAL_FLOAT(1.0f, dsp::normalizeGain(32000));                       // never quieter
+  int16_t x[3] = {1000, -2000, 30000};
+  dsp::applyGain(x, 3, 2);
+  TEST_ASSERT_EQUAL(2000, x[0]);
+  TEST_ASSERT_EQUAL(-4000, x[1]);
+  TEST_ASSERT_EQUAL(32767, x[2]);                                                 // clipped
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -971,5 +982,6 @@ int main() {
   RUN_TEST(test_intonation_reference_open_or_harmonic);
   RUN_TEST(test_intonation_cents);
   RUN_TEST(test_wav_header_round_trip);
+  RUN_TEST(test_normalize_gain);
   return UNITY_END();
 }

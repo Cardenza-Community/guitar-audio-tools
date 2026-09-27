@@ -34,4 +34,19 @@ float toDbfs(float rmsValue) {
   return db < SILENCE_DB ? SILENCE_DB : db;
 }
 
+float normalizeGain(int peak, float targetPeak, float maxGainDb) {
+  float maxGain = std::pow(10.0f, maxGainDb / 20);
+  if (peak <= 0) return maxGain;
+  float gain = targetPeak / peak;
+  if (gain > maxGain) gain = maxGain;
+  return gain < 1 ? 1 : gain;
+}
+
+void applyGain(int16_t *x, size_t count, float gain) {
+  for (size_t i = 0; i < count; i++) {
+    float v = x[i] * gain;
+    x[i] = (int16_t)(v > 32767 ? 32767 : v < -32768 ? -32768 : std::lround(v));
+  }
+}
+
 }  // namespace dsp
