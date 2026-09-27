@@ -90,12 +90,18 @@ static void iconIntonation(M5Canvas &c, int x, int y) {
   c.print("12");
 }
 
-static void iconVocal(M5Canvas &c, int x, int y) {
-  // microphone
-  c.fillRoundRect(x - 9, y - 28, 18, 32, 9, WHITE);
-  c.drawArc(x, y - 4, 15, 17, 0, 180, WHITE);
-  c.fillRect(x - 1, y + 13, 3, 10, WHITE);
-  c.fillRect(x - 12, y + 23, 25, 3, WHITE);
+static void iconChords(M5Canvas &c, int x, int y) {
+  // a small chord diagram (Am) with the chord name
+  for (int s = 0; s < 6; s++) c.drawFastHLine(x - 30, y - 20 + s * 8, 60, LIGHTGREY);
+  for (int f = 0; f < 4; f++) c.drawFastVLine(x - 30 + f * 20, y - 20, 41, LIGHTGREY);
+  c.fillRect(x - 32, y - 20, 3, 41, WHITE);
+  c.fillCircle(x - 20, y - 12, 4, GREEN);      // B string, fret 1
+  c.fillCircle(x, y - 4, 4, GREEN);            // G string, fret 2
+  c.fillCircle(x, y + 4, 4, GREEN);            // D string, fret 2
+  c.setTextSize(2);
+  c.setTextColor(ORANGE);
+  c.setCursor(x - 11, y + 24);
+  c.print("Am");
 }
 
 static void iconRecorder(M5Canvas &c, int x, int y) {
@@ -135,7 +141,7 @@ static Entry entries[] = {
     {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
     {"Metronome", "click, accents, tap", iconMetronome, metronomeApp()},
     {"Intonation", "guitar setup, fret 12", iconIntonation, intonationApp()},
-    {"Vocal trainer", "sing the target note", iconVocal, nullptr},
+    {"Chords", "chord shapes: type a name", iconChords, chordsApp()},
     {"Recorder", "WAV on the SD card", iconRecorder, recorderApp()},
     {"Mic test", "diagnostics", iconMicTest, micTestApp()},
 };

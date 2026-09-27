@@ -13,16 +13,18 @@ detector, spectrum analyser, sound level meter and more.
 6. **Metronome** – clicks with accents, tempo from BPM or tapping
 7. **Intonation** – guitar setup: open string (or 12th-fret harmonic) vs. the
    12th fret, tells which way to move the saddle, overview of all 6 strings
-8. **Recorder** – WAV files on the SD card
-9. **Vocal trainer** – maybe later (deviation from the target note)
+8. **Chords** – chord dictionary: type a name, see the shape on the fretboard
+9. **Scales** – scales on the fretboard (planned)
+10. **Recorder** – WAV files on the SD card
 
 The firmware is meant for musicians and guitarists. (A night/snoring monitor
 was dropped for that reason. Checking guitar intonation up the neck needs no
-extra app: the tuner in CHROMATIC mode shows any note and its deviation.)
+extra app: the tuner in CHROMATIC mode shows any note and its deviation.
+A vocal trainer was dropped too: the chord and scale reference fits better.)
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner*, *Strum tuner*, *Spectrum*, *BPM*, *Metronome*, *Intonation*, *Recorder* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner*, *Strum tuner*, *Spectrum*, *BPM*, *Metronome*, *Intonation*, *Chords*, *Recorder* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 Every app: `h` shows a help page with its keys (big, readable font), `Esc` goes
@@ -85,6 +87,17 @@ small display).
   deviation from the octave: sharp = move the saddle back (away from the neck),
   flat = forward, within 2 cents = OK. A row shows all six strings.
   `Enter` again, `r` clear all, `;`/`.` gain. The guitar must be tuned first.
+- Chords: type a chord name, e.g. `am7`, `f#m` (`#` = shift + 3), `bb`, `c9`.
+  Types: major, `m`, `7`, `maj7`, `m7`, `sus2`, `sus4`, `dim`, `aug`, `6`, `9`,
+  `add9`, `5`. The shape is drawn on a horizontal fretboard (high E string at
+  the top, as seen when playing): numbers = fingers, orange = root, a green bar =
+  barre, `x` = not played, a ring = open string. Next to the name: the notes of
+  the chord, correctly spelled (Cm = C Eb G). Shapes: the open chord (if there
+  is one), then movable barre shapes with the root on the E and A strings.
+  `,`/`/` other shape, `Del` deletes a letter, `Enter` clears the name. A note
+  letter that cannot continue the name starts a new chord (after `am7`, `d`
+  shows D); `Enter` is needed only when it could continue it (C then A: `ca`
+  may become `cadd9`). No microphone.
 - Recorder: `Enter` record / stop, space play / stop, `,`/`/` previous / next
   recording, `Del` delete (twice), `;`/`.` microphone gain (volume while
   playing). WAV files, 16 kHz mono, in `/recordings` on the SD card
@@ -104,7 +117,7 @@ small display).
 | `src/apps/` | the apps (`mic_test.cpp`, ...) |
 | `src/services/` | `audio_in` (gapless microphone stream), `settings` (NVS), `storage` (SD card), `ui` (screen helpers) |
 | `src/hw/es8311.*` | direct access to the ES8311 codec (gain, register dump) |
-| `lib/dsp/` | signal processing without hardware: levels, weighting, YIN pitch, notes, tuning, strum tuner, FFT, spectrum bands, onsets, tempo, intonation, WAV header |
+| `lib/dsp/` | signal processing without hardware: levels, weighting, YIN pitch, notes, tuning, strum tuner, FFT, spectrum bands, onsets, tempo, intonation, WAV header, music theory (chord spelling and shapes) |
 | `test/test_dsp/` | unit tests of `lib/dsp`, run on the PC |
 
 ## Building

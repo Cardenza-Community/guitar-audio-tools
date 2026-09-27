@@ -73,7 +73,7 @@ to the app. No sound is lost between blocks (needed for BPM and recording).
 
 | Part | Used by |
 |------|---------|
-| pitch detection (YIN) + needle gauge | tuner, vocal trainer |
+| pitch detection (YIN) + needle gauge | tuner, intonation |
 | FFT | spectrum, strum tuner, BPM |
 | level (dB SPL, Leq, A-weighting) | decibel meter, monitor |
 | SD card + WAV writer | recorder, monitor |
@@ -91,6 +91,7 @@ to the app. No sound is lost between blocks (needed for BPM and recording).
 | 6 | BPM detector (listening and tap tempo) | FFT/onsets, gapless audio |
 | 7 | Recorder to SD card | SD + WAV |
 | 8 | (dropped: night/snoring monitor – the firmware stays focused on musicians) | |
+| 9 | Chords, then Scales (instead of a vocal trainer) | no audio: music theory in `lib/dsp/theory.*` (tested on the PC), shared fretboard drawing |
 
 ## Quality
 - Unit tests for all DSP code: `pio test -e native`.

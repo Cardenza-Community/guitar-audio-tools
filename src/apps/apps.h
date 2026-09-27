@@ -11,4 +11,5 @@ App *spectrumApp();
 App *bpmApp();
 App *metronomeApp();
 App *intonationApp();
+App *chordsApp();
 App *recorderApp();

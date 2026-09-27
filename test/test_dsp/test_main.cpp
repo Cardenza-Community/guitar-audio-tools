@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
+#include <string>
 #include <vector>
 #include "level.h"
 #include "notes.h"
@@ -24,6 +25,8 @@
 #include "songs.h"
 #include "intonation.h"
 #include "wav.h"
+#include "theory.h"
+#include <cstring>
 #include <complex>
 #include "weighting.h"
 
@@ -904,6 +907,115 @@ void test_normalize_gain() {
 void setUp() {}
 void tearDown() {}
 
+// ---------- music theory ----------
+
+static std::string spelled(const char *chord) {
+  dsp::Chord c;
+  TEST_ASSERT_TRUE(dsp::parseChord(chord, c) == dsp::ParseResult::Chord);
+  dsp::ChordTone tones[6];
+  int n = dsp::chordTones(c, tones, 6);
+  std::string out;
+  for (int i = 0; i < n; i++) {
+    char name[6];
+    dsp::noteName(tones[i].note, name);
+    if (i) out += " ";
+    out += name;
+  }
+  return out;
+}
+
+void test_chord_spelling() {
+  TEST_ASSERT_EQUAL_STRING("C Eb G", spelled("cm").c_str());
+  TEST_ASSERT_EQUAL_STRING("A C# E", spelled("A").c_str());
+  TEST_ASSERT_EQUAL_STRING("Bb D F Ab", spelled("bb7").c_str());
+  TEST_ASSERT_EQUAL_STRING("F# A C#", spelled("f#m").c_str());
+  TEST_ASSERT_EQUAL_STRING("C Eb Gb", spelled("cdim").c_str());
+  TEST_ASSERT_EQUAL_STRING("C E G#", spelled("caug").c_str());
+  TEST_ASSERT_EQUAL_STRING("C E G Bb D", spelled("c9").c_str());
+  TEST_ASSERT_EQUAL_STRING("E G# B D#", spelled("Emaj7").c_str());
+  TEST_ASSERT_EQUAL_STRING("D E A", spelled("dsus2").c_str());
+}
+
+void test_chord_parsing() {
+  dsp::Chord c;
+  TEST_ASSERT_TRUE(dsp::parseChord("am7", c) == dsp::ParseResult::Chord);
+  char name[12];
+  dsp::chordName(c, name);
+  TEST_ASSERT_EQUAL_STRING("Am7", name);
+  TEST_ASSERT_TRUE(dsp::parseChord("bb", c) == dsp::ParseResult::Chord);
+  dsp::chordName(c, name);
+  TEST_ASSERT_EQUAL_STRING("Bb", name);
+  TEST_ASSERT_TRUE(dsp::parseChord("b", c) == dsp::ParseResult::Chord);
+  TEST_ASSERT_TRUE(dsp::parseChord("cma", c) == dsp::ParseResult::Incomplete);
+  TEST_ASSERT_TRUE(dsp::parseChord("cad", c) == dsp::ParseResult::Incomplete);
+  TEST_ASSERT_TRUE(dsp::parseChord("", c) == dsp::ParseResult::Incomplete);
+  TEST_ASSERT_TRUE(dsp::parseChord("cx", c) == dsp::ParseResult::Invalid);
+  TEST_ASSERT_TRUE(dsp::parseChord("h", c) == dsp::ParseResult::Invalid);
+  TEST_ASSERT_TRUE(dsp::parseChord("c#m7", c) == dsp::ParseResult::Chord);
+  TEST_ASSERT_EQUAL(1, c.root.pitch);
+}
+
+// Every shape of every chord (12 roots x all types): only chord notes, the
+// root in the bass, all notes except the 5th present, playable fingering.
+void test_chord_voicings() {
+  const char *roots[] = {"c", "c#", "d", "eb", "e", "f", "f#", "g", "ab", "a", "bb", "b"};
+  for (const char *root : roots) {
+    for (int t = 0; t < dsp::CHORD_TYPE_COUNT; t++) {
+      char text[12];
+      snprintf(text, sizeof(text), "%s%s", root, dsp::CHORD_TYPES[t].suffix);
+      dsp::Chord chord;
+      TEST_ASSERT_TRUE_MESSAGE(dsp::parseChord(text, chord) == dsp::ParseResult::Chord, text);
+      dsp::ChordTone tones[6];
+      int toneCount = dsp::chordTones(chord, tones, 6);
+      dsp::Voicing v[6];
+      int count = dsp::chordVoicings(chord, v, 6);
+      TEST_ASSERT_TRUE_MESSAGE(count >= 1, text);
+      for (int i = 0; i < count; i++) {
+        char message[40];
+        snprintf(message, sizeof(message), "%s shape %d", text, i + 1);
+        bool present[6] = {};
+        int lowest = -1, played = 0, minFret = 99, maxFret = 0;
+        int fingerFret[5] = {-1, -1, -1, -1, -1};
+        for (int s = 0; s < 6; s++) {
+          int fret = v[i].fret[s], finger = v[i].finger[s];
+          if (fret == dsp::MUTED) {
+            TEST_ASSERT_EQUAL_MESSAGE(0, finger, message);
+            continue;
+          }
+          played++;
+          int pitch = (dsp::GUITAR_MIDI[s] + fret) % 12;
+          if (lowest < 0) lowest = pitch;
+          bool inChord = false;
+          for (int k = 0; k < toneCount; k++)
+            if (tones[k].note.pitch == pitch) inChord = present[k] = true;
+          TEST_ASSERT_TRUE_MESSAGE(inChord, message);
+          if (fret == 0) {
+            TEST_ASSERT_EQUAL_MESSAGE(0, finger, message);
+            continue;
+          }
+          TEST_ASSERT_TRUE_MESSAGE(finger >= 1 && finger <= 4, message);
+          // one finger presses one fret (several strings there = a barre)
+          TEST_ASSERT_TRUE_MESSAGE(fingerFret[finger] < 0 || fingerFret[finger] == fret, message);
+          fingerFret[finger] = fret;
+          minFret = std::min(minFret, fret);
+          maxFret = std::max(maxFret, fret);
+        }
+        TEST_ASSERT_EQUAL_MESSAGE(chord.root.pitch, lowest, message);
+        TEST_ASSERT_TRUE_MESSAGE(played >= 3 || (played >= 2 && t == dsp::CHORD_TYPE_COUNT - 1), message);
+        TEST_ASSERT_TRUE_MESSAGE(maxFret - minFret <= 4, message);
+        // a higher finger never presses a lower fret than a lower finger
+        for (int a = 1; a <= 4; a++)
+          for (int b = a + 1; b <= 4; b++)
+            if (fingerFret[a] >= 0 && fingerFret[b] >= 0)
+              TEST_ASSERT_TRUE_MESSAGE(fingerFret[b] >= fingerFret[a], message);
+        for (int k = 0; k < toneCount; k++)
+          if (strncmp(tones[k].degree, "5", tones[k].degreeLength) != 0 || toneCount == 2)
+            TEST_ASSERT_TRUE_MESSAGE(present[k], message);
+      }
+    }
+  }
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_full_scale_sine_is_minus_3_dbfs);
@@ -983,5 +1095,8 @@ int main() {
   RUN_TEST(test_intonation_cents);
   RUN_TEST(test_wav_header_round_trip);
   RUN_TEST(test_normalize_gain);
+  RUN_TEST(test_chord_spelling);
+  RUN_TEST(test_chord_parsing);
+  RUN_TEST(test_chord_voicings);
   return UNITY_END();
 }
