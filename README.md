@@ -174,4 +174,4 @@ The microphone and the speaker share the I2S bus, so the speaker is turned
 off before recording.
 
 ## License
-MIT, see [LICENSE](LICENSE).
+All rights reserved, see [LICENSE](LICENSE). Private project, not for distribution.
