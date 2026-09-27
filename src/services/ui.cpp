@@ -64,13 +64,20 @@ void helpPage(const char *title, const HelpItem *items, int count) {
   canvas.setFont(&fonts::Font0);             // back to the default font
 }
 
-static int flashDb = 0;
+static int flashValue = 0, flashMax = 30;
+static const char *flashLabel = "MIC GAIN";
+static const char *flashUnit = "dB";
 static uint32_t flashUntil = 0;
 
-void flashGain(int db) {
-  flashDb = db;
+void flashLevel(const char *label, int value, int max, const char *unit) {
+  flashLabel = label;
+  flashValue = value;
+  flashMax = max;
+  flashUnit = unit;
   flashUntil = millis() + 1500;
 }
+
+void flashGain(int db) { flashLevel("MIC GAIN", db, 30, "dB"); }
 
 void drawFlash() {
   if ((int32_t)(flashUntil - millis()) <= 0) return;
@@ -78,7 +85,7 @@ void drawFlash() {
   canvas.fillRoundRect(x, y, w, h, 6, NAVY);
   canvas.drawRoundRect(x, y, w, h, 6, YELLOW);
   char text[24];
-  snprintf(text, sizeof(text), "MIC GAIN %d dB", flashDb);
+  snprintf(text, sizeof(text), "%s %d %s", flashLabel, flashValue, flashUnit);
   canvas.setTextSize(2);
   canvas.setTextColor(WHITE);
   canvas.setCursor(x + (w - canvas.textWidth(text)) / 2, y + 6);
@@ -86,7 +93,7 @@ void drawFlash() {
   // bar 0 ... 30 dB
   int barW = w - 20;
   canvas.drawRect(x + 10, y + 28, barW, 9, WHITE);
-  canvas.fillRect(x + 11, y + 29, (barW - 2) * flashDb / 30, 7, YELLOW);
+  canvas.fillRect(x + 11, y + 29, (barW - 2) * flashValue / flashMax, 7, YELLOW);
   canvas.setTextSize(1);
 }
 

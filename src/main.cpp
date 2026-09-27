@@ -20,7 +20,7 @@ void openApp(App *app) {
   current = app;
   showingHelp = false;
   current->enter();
-  if (!audio_in::start(current->sampleRate(), current->micGain()))
+  if (current->sampleRate() > 0 && !audio_in::start(current->sampleRate(), current->micGain()))
     Serial.println("audio_in::start failed");
 }
 

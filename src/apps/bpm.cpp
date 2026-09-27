@@ -22,6 +22,7 @@
 #include "apps.h"
 #include "onset.h"
 #include "tempo.h"
+#include "../services/settings.h"
 #include "../services/ui.h"
 
 namespace {
@@ -54,6 +55,8 @@ class BpmApp : public App {
   }
 
   void exit() override {
+    // the Metronome offers the last tempo from here
+    if (bpm_ > 0) settings::putInt("bpm_last", (int)lroundf(bpm_ * factor_));
     onsets_.reset();
     tempo_.reset();
     std::vector<uint16_t>().swap(dumpRing_);

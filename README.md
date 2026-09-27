@@ -22,7 +22,7 @@ extra app: the tuner in CHROMATIC mode shows any note and its deviation.)
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner*, *Strum Tuner*, *Spectrum*, *BPM* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner*, *Strum Tuner*, *Spectrum*, *BPM*, *Metronome* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 Every app: `h` shows a help page with its keys (big, readable font), `Esc` goes
@@ -74,6 +74,11 @@ small display).
   beat. `,` /2, `/` x2, `r` restart, `d` dump onset data (serial).
   Tested on songs played from a phone: Sandstorm 136.1, Levels 126.0, Bad
   Romance 119, Thunderstruck 133, Another One Bites the Dust 110.
+- Metronome: `Enter` start/stop, `,`/`/` tempo ±1, `-`/`=` ±5 (30–250 BPM),
+  space taps the tempo, `m` 2/4 3/4 4/4 6/8 (accent on 1; in 6/8 also on 4),
+  `;`/`.` volume, `l` takes the last tempo from the BPM app. The clicks are
+  timed by a task of their own on the other CPU core (drawing the display
+  would make them uneven); the frame flashes on every beat.
 - Mic test: `;` / `.` change the analog microphone gain (0–30 dB in 3 dB steps),
   `g` runs an automatic gain test (play a steady tone; the level should rise
   6 dB per step). The serial console (115200 baud) prints the values 4× per second.

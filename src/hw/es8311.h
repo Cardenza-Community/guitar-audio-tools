@@ -22,6 +22,11 @@ namespace es8311 {
 void setPgaGain(int db);
 int pgaGain();
 
+// Powers the DAC (speaker path) down. M5Unified 0.2.23 switches it on for the
+// speaker but does nothing when the speaker is ended, so on the Cardputer ADV
+// the idle amplifier then hums. Call after M5Cardputer.Speaker.end().
+void speakerOff();
+
 uint8_t readRegister(uint8_t reg);
 void printRegisters();   // dumps the important registers to Serial
 

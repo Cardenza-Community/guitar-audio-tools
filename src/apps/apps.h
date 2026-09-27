@@ -9,3 +9,4 @@ App *tunerApp();
 App *strumTunerApp();
 App *spectrumApp();
 App *bpmApp();
+App *metronomeApp();

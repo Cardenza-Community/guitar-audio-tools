@@ -120,7 +120,7 @@ static Entry entries[] = {
     {"Strum Tuner", "all strings at once", iconStrumTuner, strumTunerApp()},
     {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
     {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
-    {"Metronome", "click, accents, tap", iconMetronome, nullptr},
+    {"Metronome", "click, accents, tap", iconMetronome, metronomeApp()},
     {"Vocal trainer", "sing the target note", iconVocal, nullptr},
     {"Recorder", "WAV on the SD card", iconRecorder, nullptr},
     {"Mic test", "diagnostics", iconMicTest, micTestApp()},

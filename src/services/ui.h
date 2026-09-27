@@ -33,6 +33,8 @@ void helpPage(const char *title, const HelpItem *items, int count);
 // big "MIC GAIN 27 dB" box with a 0...30 dB bar for 1.5 s (after ; or .);
 // main draws it over the app with drawFlash()
 void flashGain(int db);
+// the same for any level, e.g. flashLevel("VOLUME", 7, 10, "")
+void flashLevel(const char *label, int value, int max, const char *unit);
 void drawFlash();
 void push();                     // copy the canvas to the display
 

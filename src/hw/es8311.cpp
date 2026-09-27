@@ -18,6 +18,12 @@ void setPgaGain(int db) {
 
 int pgaGain() { return currentGain; }
 
+void speakerOff() {
+  M5.In_I2C.writeRegister8(ADDRESS, 0x32, 0x00, I2C_FREQ);   // DAC volume: -95.5 dB (silent)
+  M5.In_I2C.writeRegister8(ADDRESS, 0x12, 0x02, I2C_FREQ);   // PDN_DAC: DAC powered down (default)
+  M5.In_I2C.writeRegister8(ADDRESS, 0x13, 0x40, I2C_FREQ);   // output drive back to default
+}
+
 uint8_t readRegister(uint8_t reg) {
   return M5.In_I2C.readRegister8(ADDRESS, reg, I2C_FREQ);
 }

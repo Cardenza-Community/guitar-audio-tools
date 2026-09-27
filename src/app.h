@@ -19,7 +19,8 @@ class App {
 
   virtual const char *name() const = 0;
 
-  // Microphone set-up used while the app runs.
+  // Microphone set-up used while the app runs; sample rate 0 = the app does not
+  // use the microphone (e.g. it plays sound: the speaker shares the I2S bus).
   virtual uint32_t sampleRate() const { return 16000; }
   virtual int micGain() const { return 24; }        // dB, 0..30
 
