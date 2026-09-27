@@ -75,7 +75,7 @@ class MicTestApp : public App {
         {"; .", "gain + / - (3 dB steps)"},
         {"g", "gain test: play a steady"},
         {"", "tone, see serial log"},
-        {"d", "send 2 s of sound to PC"},
+        {"d", "send 3 s of sound to PC"},
         {nullptr, "CLIP: too loud, less gain"},
     };
     items = HELP;
@@ -242,6 +242,7 @@ class MicTestApp : public App {
   // With a steady tone the level should rise by about 6 dB per step.
   void startSweep() {
     sweeping_ = true;
+    gainBeforeSweep_ = es8311::pgaGain();
     sweepGain_ = 0;
     nextSweepStep();
     Serial.println("SWEEP start");
@@ -264,6 +265,7 @@ class MicTestApp : public App {
     sweepGain_ += 6;
     if (sweepGain_ > 30) {
       sweeping_ = false;
+      es8311::setPgaGain(gainBeforeSweep_);          // back to the gain used before
       Serial.println("SWEEP done");
     } else {
       nextSweepStep();
@@ -289,6 +291,7 @@ class MicTestApp : public App {
   uint32_t armedMs_ = 0;
 
   bool sweeping_ = false;
+  int gainBeforeSweep_ = 24;
   int sweepGain_ = 0, sweepBlocks_ = 0;
   uint32_t sweepStartMs_ = 0;
   float sweepPower_ = 0;

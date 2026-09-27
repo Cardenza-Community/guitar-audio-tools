@@ -1060,6 +1060,17 @@ void test_chord_voicings() {
   }
 }
 
+// Min starts empty: a sound above 0 dBFS (loud range, samples scaled up) must
+// give its own level as the minimum, not a leftover 0 dBFS.
+void test_min_level_above_full_scale() {
+  dsp::SoundLevelMeter meter(RATE, dsp::Weighting::Z);
+  TEST_ASSERT_EQUAL_FLOAT(dsp::SILENCE_DB, meter.minDb());
+  auto x = tone(1000, 20000, RATE * 2);
+  meter.process(x.data(), x.size(), 7.943f);          // +18 dB, like the LOUD range
+  TEST_ASSERT_TRUE(meter.minDb() > 10);               // about +15 dBFS
+  TEST_ASSERT_FLOAT_WITHIN(1.0f, meter.maxDb(), meter.minDb());
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_full_scale_sine_is_minus_3_dbfs);
@@ -1140,6 +1151,7 @@ int main() {
   RUN_TEST(test_intonation_cents);
   RUN_TEST(test_wav_header_round_trip);
   RUN_TEST(test_normalize_gain);
+  RUN_TEST(test_min_level_above_full_scale);
   RUN_TEST(test_chord_spelling);
   RUN_TEST(test_chord_parsing);
   RUN_TEST(test_chord_voicings);

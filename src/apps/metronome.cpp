@@ -57,7 +57,9 @@ class MetronomeApp : public App {
     running_ = false;
     quit_ = false;
     taskDone_ = false;
-    xTaskCreatePinnedToCore(clockTask, "metronome", 4096, this, 5, nullptr, 0);
+    // without memory for the task there is no clock: exit() must not wait for it
+    taskOk_ = xTaskCreatePinnedToCore(clockTask, "metronome", 4096, this, 5, nullptr, 0) == pdPASS;
+    if (!taskOk_) taskDone_ = true;
   }
 
   void exit() override {
@@ -89,7 +91,7 @@ class MetronomeApp : public App {
   }
 
   void onKey(const Key &key) override {
-    if (key.enter) {
+    if (key.enter && taskOk_) {
       if (!running_) {
         beat_ = 0;
         nextUs_ = esp_timer_get_time() + 20000;  // first click in 20 ms
@@ -154,7 +156,12 @@ class MetronomeApp : public App {
     c.setTextSize(1);
     c.setCursor(10, 102);
     c.setTextColor(running_ ? GREEN : WHITE);
-    c.print(running_ ? "running - Enter: stop" : "Enter: start");
+    if (!taskOk_) {
+      c.setTextColor(RED);
+      c.print("not enough memory - Esc, try again");
+    } else {
+      c.print(running_ ? "running - Enter: stop" : "Enter: start");
+    }
     if (fromBpmApp_ > 0 && fromBpmApp_ != bpm_.load()) {
       c.setTextColor(YELLOW);
       c.setCursor(10, 113);
@@ -206,6 +213,7 @@ class MetronomeApp : public App {
   std::atomic<int> bpm_{120}, beat_{0}, shownBeat_{0}, meter_{2};
   std::atomic<int64_t> nextUs_{0}, lastBeatUs_{0};
   int volume_ = 7, fromBpmApp_ = 0;
+  bool taskOk_ = false;
   dsp::TapTempo taps_;
 };
 

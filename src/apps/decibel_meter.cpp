@@ -59,6 +59,7 @@ class DecibelMeterApp : public App {
     calibration_ = settings::getFloat("db_cal", DEFAULT_CALIBRATION);
     calibrated_ = settings::getInt("db_calok", 0);
     loudRange_ = false;
+    skipSamples_ = 0;
     calibrating_ = false;
     quietSinceMs_ = 0;
     overload_ = false;
@@ -72,6 +73,12 @@ class DecibelMeterApp : public App {
     for (size_t i = 0; i < count; i++) peak = max(peak, abs((int)samples[i]));
     overload_ = loudRange_ && peak > 32000;
 
+    // after a range switch, samples recorded with the old gain are still on
+    // their way (microphone DMA, stream buffer): they are not measured
+    if (skipSamples_ > 0) {
+      skipSamples_ -= std::min(skipSamples_, count);
+      return;
+    }
     meter_->process(samples, count, loudRange_ ? LOUD_SCALE : 1.0f);
     updateRange(peak);
     logToSerial(peak);
@@ -226,6 +233,7 @@ class DecibelMeterApp : public App {
     if (!loudRange_ && peak > CLIP_PEAK) {
       loudRange_ = true;
       es8311::setPgaGain(LOUD_GAIN);
+      skipSamples_ = SKIP_AFTER_SWITCH;
       quietSinceMs_ = 0;
       Serial.println("range: LOUD");
     } else if (loudRange_) {
@@ -234,6 +242,7 @@ class DecibelMeterApp : public App {
         if (millis() - quietSinceMs_ > 2000) {
           loudRange_ = false;
           es8311::setPgaGain(NORMAL_GAIN);
+          skipSamples_ = SKIP_AFTER_SWITCH;
           Serial.println("range: NORMAL");
         }
       } else {
@@ -255,6 +264,8 @@ class DecibelMeterApp : public App {
   float calibration_ = DEFAULT_CALIBRATION, calEdit_ = 0;
   bool calibrated_ = false, calibrating_ = false;
   bool loudRange_ = false, overload_ = false;
+  static const size_t SKIP_AFTER_SWITCH = RATE / 10;   // 100 ms
+  size_t skipSamples_ = 0;
   uint32_t quietSinceMs_ = 0, lastLogMs_ = 0, barPeakMs_ = 0;
   static const uint32_t NUMBER_HOLD_MS = 500;
   float heldDb_ = 0;

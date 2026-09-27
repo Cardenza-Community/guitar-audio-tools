@@ -10,6 +10,7 @@
 // calibration to get dB SPL. Pure C++ (no Arduino), unit-tested on the PC.
 #pragma once
 #include <cstddef>
+#include "level.h"
 #include <cstdint>
 #include "weighting.h"
 
@@ -30,7 +31,8 @@ class SoundLevelMeter {
   float slowDb() const;
   float leqDb() const;
   float maxDb() const { return maxDb_; }
-  float minDb() const { return minDb_; }
+  // SILENCE_DB until something was measured
+  float minDb() const { return minDb_ == NO_MIN ? SILENCE_DB : minDb_; }
   float seconds() const { return (float)(leqCount_ / sampleRate_); }
 
  private:
@@ -40,6 +42,7 @@ class SoundLevelMeter {
   float fastPower_ = 0, slowPower_ = 0;
   double leqSum_ = 0;
   uint64_t leqCount_ = 0;
+  static constexpr float NO_MIN = 1e9f;
   float maxDb_, minDb_;
   uint32_t settle_ = 0;              // samples to skip in Max/Min after a reset
   uint32_t sinceCheck_ = 0;

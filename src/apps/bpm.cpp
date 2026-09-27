@@ -49,9 +49,7 @@ class BpmApp : public App {
 
   void enter() override {
     onsets_.reset(new dsp::OnsetDetector(RATE));
-    tempo_.reset(new dsp::TempoEstimator(onsets_->frameRate()));
-    startMs_ = millis();
-    restart();
+    restart();                                    // builds the tempo estimator
   }
 
   void exit() override {
@@ -60,6 +58,7 @@ class BpmApp : public App {
     onsets_.reset();
     tempo_.reset();
     std::vector<uint16_t>().swap(dumpRing_);
+    dumpPos_ = dumpCount_ = 0;                    // the ring is gone: nothing to dump
   }
 
   void process(const int16_t *samples, size_t count) override {
@@ -179,7 +178,6 @@ class BpmApp : public App {
     factor_ = 1;
     candidate_ = 0;
     candidateCount_ = 0;
-    startMs_ = millis();
     lastEstimateMs_ = 0;
   }
 
@@ -285,7 +283,7 @@ class BpmApp : public App {
   int candidateCount_ = 0;             // readings in a row that agree on it
   std::vector<uint16_t> dumpRing_;
   size_t dumpPos_ = 0, dumpCount_ = 0;
-  uint32_t startMs_ = 0, lastEstimateMs_ = 0, nextBeatMs_ = 0, lastBeatMs_ = 0;
+  uint32_t lastEstimateMs_ = 0, nextBeatMs_ = 0, lastBeatMs_ = 0;
   uint32_t lastTapMs_ = 0;
 };
 

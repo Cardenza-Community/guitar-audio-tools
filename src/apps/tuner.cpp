@@ -156,7 +156,7 @@ class TunerApp : public App {
 
     // note name in the middle, octave small next to it
     if (show) {
-      uint16_t color = !live ? LIGHTGREY : inTune ? GREEN : WHITE;
+      uint16_t color = live && inTune ? GREEN : WHITE;   // held reading: white (no grey text)
       c.setTextColor(color);
       c.setTextSize(4);
       int w = c.textWidth(noteName);
@@ -167,7 +167,7 @@ class TunerApp : public App {
       c.print(octave);
 
       // deviation in cents (left) and frequency / string (right)
-      c.setTextColor(live ? WHITE : LIGHTGREY);
+      c.setTextColor(WHITE);
       c.setCursor(2, 100);
       c.printf("%+.0f c", cents);
       if (live && !inTune && fabsf(cents) > 50) {
@@ -177,7 +177,7 @@ class TunerApp : public App {
         c.print(cents < 0 ? "tune up" : "tune down");
       }
       c.setTextSize(1);
-      c.setTextColor(live ? WHITE : LIGHTGREY);
+      c.setTextColor(WHITE);
       char hzText[16];
       snprintf(hzText, sizeof(hzText), "%.1f Hz", lastHz_);
       c.setCursor(ui::WIDTH - 2 - c.textWidth(hzText), 104);

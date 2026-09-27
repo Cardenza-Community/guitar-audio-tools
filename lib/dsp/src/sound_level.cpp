@@ -23,7 +23,7 @@ void SoundLevelMeter::reset() {
   leqSum_ = 0;
   leqCount_ = 0;
   maxDb_ = SILENCE_DB;
-  minDb_ = 0;
+  minDb_ = NO_MIN;          // the first measured value becomes the minimum
   settle_ = (uint32_t)(0.5f * sampleRate_);   // let Fast settle before Max/Min
 }
 
