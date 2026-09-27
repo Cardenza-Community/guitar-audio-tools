@@ -14,7 +14,7 @@ detector, spectrum analyser, sound level meter and more.
 7. **Intonation** – guitar setup: open string (or 12th-fret harmonic) vs. the
    12th fret, tells which way to move the saddle, overview of all 6 strings
 8. **Chords** – chord dictionary: type a name, see the shape on the fretboard
-9. **Scales** – scales on the fretboard (planned)
+9. **Scales** – scales on the whole fretboard
 10. **Recorder** – WAV files on the SD card
 
 The firmware is meant for musicians and guitarists. (A night/snoring monitor
@@ -24,7 +24,7 @@ A vocal trainer was dropped too: the chord and scale reference fits better.)
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner*, *Strum tuner*, *Spectrum*, *BPM*, *Metronome*, *Intonation*, *Chords*, *Recorder* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner*, *Strum tuner*, *Spectrum*, *BPM*, *Metronome*, *Intonation*, *Chords*, *Scales*, *Recorder* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 Every app: `h` shows a help page with its keys (big, readable font), `Esc` goes
@@ -98,6 +98,11 @@ small display).
   letter that cannot continue the name starts a new chord (after `am7`, `d`
   shows D); `Enter` is needed only when it could continue it (C then A: `ca`
   may become `cadd9`). No microphone.
+- Scales: `a`–`g` the key (`#` or `b` right after the letter: sharp / flat;
+  `b` alone is B), `,`/`/` the scale (minor and major pentatonic, blues, major,
+  minor, dorian, mixolydian, harmonic minor), `;`/`.` frets 0–12 / 12–24.
+  Small dots on the fretboard: orange = root, green = other notes, light blue =
+  the blue note (b5). Note names are spelled for the key (F major has Bb).
 - Recorder: `Enter` record / stop, space play / stop, `,`/`/` previous / next
   recording, `Del` delete (twice), `;`/`.` microphone gain (volume while
   playing). WAV files, 16 kHz mono, in `/recordings` on the SD card

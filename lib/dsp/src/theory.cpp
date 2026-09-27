@@ -89,18 +89,38 @@ void chordName(const Chord &chord, char *out) {
   strcat(out, CHORD_TYPES[chord.type].suffix);
 }
 
-int chordTones(const Chord &chord, ChordTone *out, int max) {
+// splits "1 b3 5" into spelled notes above `root`
+static int notesOfDegrees(SpelledNote root, const char *p, ChordTone *out, int max) {
   int count = 0;
-  const char *p = CHORD_TYPES[chord.type].degrees;
   while (*p && count < max) {
     const char *end = strchr(p, ' ');
     if (!end) end = p + strlen(p);
     char degree[4] = {};
     memcpy(degree, p, std::min<size_t>(end - p, 3));
-    out[count++] = {noteAbove(chord.root, degree), p, (int)(end - p)};
+    out[count++] = {noteAbove(root, degree), p, (int)(end - p)};
     p = *end ? end + 1 : end;
   }
   return count;
+}
+
+int chordTones(const Chord &chord, ChordTone *out, int max) {
+  return notesOfDegrees(chord.root, CHORD_TYPES[chord.type].degrees, out, max);
+}
+
+const ScaleType SCALE_TYPES[] = {
+    {"minor pentatonic", "1 b3 4 5 b7"},
+    {"major pentatonic", "1 2 3 5 6"},
+    {"blues", "1 b3 4 b5 5 b7"},
+    {"major", "1 2 3 4 5 6 7"},
+    {"minor", "1 2 b3 4 5 b6 b7"},
+    {"dorian", "1 2 b3 4 5 6 b7"},
+    {"mixolydian", "1 2 3 4 5 6 b7"},
+    {"harmonic minor", "1 2 b3 4 5 b6 7"},
+};
+const int SCALE_TYPE_COUNT = sizeof(SCALE_TYPES) / sizeof(SCALE_TYPES[0]);
+
+int scaleNotes(SpelledNote root, int type, ChordTone *out, int max) {
+  return notesOfDegrees(root, SCALE_TYPES[type].degrees, out, max);
 }
 
 // ---------- chord shapes ----------

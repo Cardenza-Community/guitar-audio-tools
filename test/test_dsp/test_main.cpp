@@ -955,6 +955,32 @@ void test_chord_parsing() {
   TEST_ASSERT_EQUAL(1, c.root.pitch);
 }
 
+static std::string scale(const char *root, int type) {
+  dsp::Chord c;
+  TEST_ASSERT_TRUE(dsp::parseChord(root, c) == dsp::ParseResult::Chord);
+  dsp::ChordTone notes[7];
+  int n = dsp::scaleNotes(c.root, type, notes, 7);
+  std::string out;
+  for (int i = 0; i < n; i++) {
+    char name[6];
+    dsp::noteName(notes[i].note, name);
+    if (i) out += " ";
+    out += name;
+  }
+  return out;
+}
+
+void test_scale_spelling() {
+  TEST_ASSERT_EQUAL_STRING("A C D E G", scale("a", 0).c_str());          // minor pentatonic
+  TEST_ASSERT_EQUAL_STRING("G A B D E", scale("g", 1).c_str());          // major pentatonic
+  TEST_ASSERT_EQUAL_STRING("E G A Bb B D", scale("e", 2).c_str());       // blues
+  TEST_ASSERT_EQUAL_STRING("F G A Bb C D E", scale("f", 3).c_str());     // major
+  TEST_ASSERT_EQUAL_STRING("F# G# A B C# D E", scale("f#", 4).c_str());  // minor
+  TEST_ASSERT_EQUAL_STRING("D E F G A B C", scale("d", 5).c_str());      // dorian
+  TEST_ASSERT_EQUAL_STRING("G A B C D E F", scale("g", 6).c_str());      // mixolydian
+  TEST_ASSERT_EQUAL_STRING("A B C D E F G#", scale("a", 7).c_str());     // harmonic minor
+}
+
 // Every shape of every chord (12 roots x all types): only chord notes, the
 // root in the bass, all notes except the 5th present, playable fingering.
 void test_chord_voicings() {
@@ -1098,5 +1124,6 @@ int main() {
   RUN_TEST(test_chord_spelling);
   RUN_TEST(test_chord_parsing);
   RUN_TEST(test_chord_voicings);
+  RUN_TEST(test_scale_spelling);
   return UNITY_END();
 }

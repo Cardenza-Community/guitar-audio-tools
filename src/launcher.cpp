@@ -104,6 +104,18 @@ static void iconChords(M5Canvas &c, int x, int y) {
   c.print("Am");
 }
 
+static void iconScales(M5Canvas &c, int x, int y) {
+  // the A minor pentatonic "box" at frets 5-8, roots (A) orange
+  for (int s = 0; s < 6; s++) c.drawFastHLine(x - 30, y - 20 + s * 8, 61, LIGHTGREY);
+  for (int f = 0; f < 5; f++) c.drawFastVLine(x - 30 + f * 15, y - 20, 41, LIGHTGREY);
+  const int fret[6][2] = {{0, 3}, {0, 3}, {0, 2}, {0, 2}, {0, 2}, {0, 3}};   // high E ... low E
+  for (int s = 0; s < 6; s++)
+    for (int k = 0; k < 2; k++) {
+      bool root = (s == 0 && k == 0) || (s == 3 && k == 1) || (s == 5 && k == 0);
+      c.fillCircle(x - 23 + fret[s][k] * 15, y - 20 + s * 8, 3, root ? ORANGE : GREEN);
+    }
+}
+
 static void iconRecorder(M5Canvas &c, int x, int y) {
   // record button
   c.drawRoundRect(x - 28, y - 26, 57, 53, 8, WHITE);
@@ -142,6 +154,7 @@ static Entry entries[] = {
     {"Metronome", "click, accents, tap", iconMetronome, metronomeApp()},
     {"Intonation", "guitar setup, fret 12", iconIntonation, intonationApp()},
     {"Chords", "chord shapes: type a name", iconChords, chordsApp()},
+    {"Scales", "scales on the fretboard", iconScales, scalesApp()},
     {"Recorder", "WAV on the SD card", iconRecorder, recorderApp()},
     {"Mic test", "diagnostics", iconMicTest, micTestApp()},
 };

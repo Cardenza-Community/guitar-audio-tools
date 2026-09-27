@@ -1,4 +1,4 @@
-// Music theory for the Chords (and Scales) apps: note spelling, chord types,
+// Music theory for the Chords and Scales apps: note spelling, chord types,
 // parsing a typed chord name and chord shapes on the guitar neck.
 // Pure C++ (no Arduino), unit-tested on the PC.
 //
@@ -53,10 +53,21 @@ void chordName(const Chord &chord, char *out);
 // The notes of a chord with their degrees; returns their number (at most 6).
 struct ChordTone {
   SpelledNote note;
-  const char *degree;    // points into CHORD_TYPES[].degrees, not terminated:
+  const char *degree;    // points into the degrees text ("1 b3 5"), not terminated:
   int degreeLength;      // use degreeLength characters
 };
 int chordTones(const Chord &chord, ChordTone *out, int max);
+
+struct ScaleType {
+  const char *name;      // "minor pentatonic"
+  const char *degrees;   // "1 b3 4 5 b7"
+};
+extern const ScaleType SCALE_TYPES[];
+extern const int SCALE_TYPE_COUNT;
+
+// The notes of a scale, spelled for its key (F major has Bb, not A#), with
+// their degrees; returns their number (at most 7). Uses ChordTone for both.
+int scaleNotes(SpelledNote root, int type, ChordTone *out, int max);
 
 // A chord shape: for each string (0 = low E ... 5 = high E) the fret
 // (0 = open, MUTED = not played) and the finger (1 index ... 4 little, 0 none).
