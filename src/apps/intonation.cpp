@@ -47,6 +47,7 @@ class IntonationApp : public App {
     writePos_ = newSamples_ = 0;
     a4_ = settings::getFloat("a4", 440.0f);
     for (float &r : results_) r = NAN;
+    lastString_ = -1;                              // the instance lives on between visits
     restart();
   }
 
@@ -122,7 +123,7 @@ class IntonationApp : public App {
     }
 
     // the last result
-    if (lastString_ >= 0) {
+    if (lastString_ >= 0 && !isnan(results_[lastString_])) {
       float cents = results_[lastString_];
       uint16_t color = fabsf(cents) <= OK_CENTS ? GREEN : fabsf(cents) <= CLOSE_CENTS ? YELLOW : ORANGE;
       c.setTextSize(3);
