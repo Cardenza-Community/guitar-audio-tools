@@ -1,8 +1,8 @@
-// PolyTune: strum all six open strings, see which ones are out of tune.
+// Strum Tuner: strum all six open strings, see which ones are out of tune.
 //
 // Flow: wait for a strum (the level jumps by 10 dB or more), skip the first
 // 150 ms (pluck noise), collect 1.024 s of sound, analyse all strings at once
-// (lib/dsp/polytune) and show the result until the next strum.
+// (lib/dsp/strum_tuner) and show the result until the next strum.
 // The sound is reduced from 16 kHz to 4 kHz first: strings and their 2nd
 // harmonics are below 700 Hz, and 1 s at 4 kHz fits into 16 KB.
 //
@@ -27,7 +27,7 @@
 #include "decimator.h"
 #include "level.h"
 #include "notes.h"
-#include "polytune.h"
+#include "strum_tuner.h"
 #include "../hw/es8311.h"
 #include "../services/audio_in.h"
 #include "../services/settings.h"
@@ -56,15 +56,15 @@ const float SCALE = 0.72f;                  // pixels per cent: +-50 cents = +-3
 
 enum class State { Waiting, Collecting };
 
-class PolyTuneApp : public App {
+class StrumTunerApp : public App {
  public:
-  const char *name() const override { return "PolyTune"; }
+  const char *name() const override { return "Strum Tuner"; }
   uint32_t sampleRate() const override { return RATE; }
   int micGain() const override { return settings::getInt("g_poly", 24); }
 
   void enter() override {
     decimator_.reset(new dsp::Decimator(FACTOR));
-    tuner_.reset(new dsp::PolyTuner(LOW_RATE, LENGTH));
+    tuner_.reset(new dsp::StrumTuner(LOW_RATE, LENGTH));
     buffer_.assign(SKIP + LENGTH, 0);
     ring_.assign(LENGTH, 0);
     ringPos_ = 0;
@@ -148,7 +148,7 @@ class PolyTuneApp : public App {
     char right[32];
     snprintf(right, sizeof(right), "%s%s  A4=%.0f", state_ == State::Collecting ? "listening " : "",
              custom_ ? "CAL" : "", a4_);
-    ui::header("PolyTune", right);
+    ui::header("Strum Tuner", right);
 
     static const char *NAMES[] = {"E", "A", "D", "G", "B", "e"};
     for (int s = 0; s < dsp::GUITAR_STRINGS; s++) {
@@ -329,7 +329,7 @@ class PolyTuneApp : public App {
   }
 
   void drawCalibration(M5Canvas &c) {
-    ui::header("PolyTune", "CALIBRATION");
+    ui::header("Strum Tuner", "CALIBRATION");
     c.setTextSize(1);
     c.setTextColor(WHITE);
     const char *lines[] = {"1. tune every string with the", "   Guitar tuner", "2. strum all 6 open strings,",
@@ -365,7 +365,7 @@ class PolyTuneApp : public App {
   }
 
   std::unique_ptr<dsp::Decimator> decimator_;
-  std::unique_ptr<dsp::PolyTuner> tuner_;
+  std::unique_ptr<dsp::StrumTuner> tuner_;
   std::vector<float> buffer_;       // SKIP + LENGTH samples at 4 kHz after a strum
   std::vector<float> decimated_;
   std::vector<float> ring_;         // the last second, for the background
@@ -390,8 +390,8 @@ class PolyTuneApp : public App {
   uint32_t lastOnsetMs_ = 0;
 };
 
-PolyTuneApp instance;
+StrumTunerApp instance;
 
 }  // namespace
 
-App *polyTuneApp() { return &instance; }
+App *strumTunerApp() { return &instance; }

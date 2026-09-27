@@ -1,17 +1,20 @@
-# Audiotools for Cardputer ADV
+# Guitar Audio Tools for Cardputer ADV
 
-Audio tools for the M5Stack Cardputer ADV (ESP32-S3): sound level meter,
-noise analysis, spectrum/spectrogram and an instrument tuner.
+Audio tools for guitarists and musicians on the M5Stack Cardputer ADV
+(ESP32-S3): a precise tuner, a strum tuner for all six strings at once, BPM
+detector, spectrum analyser, sound level meter and more.
 
 ## Apps (planned)
 1. **Decibel meter** – calibrated dB SPL, max, average (Leq), A-weighting
 2. **Guitar tuner** – needle gauge ±50 cents, note name
-3. **Polyphonic tuner** – strum all strings at once (like PolyTune)
+3. **Strum Tuner** – strum all six open strings, see which are out of tune
 4. **Spectrum analyser** – green/yellow/red bars reacting to music
 5. **BPM detector** – from music or by tapping (tap tempo)
 6. **Metronome** – clicks with accents, tempo from BPM or tapping
-7. **Recorder** – WAV files on the SD card
-8. **Vocal trainer** – maybe later (deviation from the target note)
+7. **Intonation** – guitar setup: open string (or 12th-fret harmonic) vs. the
+   12th fret, tells which way to move the saddle, overview of all 6 strings
+8. **Recorder** – WAV files on the SD card
+9. **Vocal trainer** – maybe later (deviation from the target note)
 
 The firmware is meant for musicians and guitarists. (A night/snoring monitor
 was dropped for that reason. Checking guitar intonation up the neck needs no
@@ -19,7 +22,7 @@ extra app: the tuner in CHROMATIC mode shows any note and its deviation.)
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner*, *PolyTune*, *Spectrum*, *BPM* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner*, *Strum Tuner*, *Spectrum*, *BPM* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 Every app: `h` shows a help page with its keys (big, readable font), `Esc` goes
@@ -45,7 +48,7 @@ small display).
   pluck the needle is thin and light: the string starts sharp and settles
   (the low E by 20–35 cents in the first second). Below 100 Hz the needle is
   smoothed twice as strongly.
-- PolyTune: strum all six open strings; after about 1.2 s one column per
+- Strum Tuner: strum all six open strings; after about 1.2 s one column per
   string shows the deviation (marker up = sharp, down = flat, green centre
   ±3 cents; an arrow above the column says which way to tune: yellow for
   10–50 cents, red for more than 50; "?" = string not heard). Weak strums,
@@ -84,7 +87,7 @@ small display).
 | `src/apps/` | the apps (`mic_test.cpp`, ...) |
 | `src/services/` | `audio_in` (gapless microphone stream), `settings` (NVS), `ui` (screen helpers) |
 | `src/hw/es8311.*` | direct access to the ES8311 codec (gain, register dump) |
-| `lib/dsp/` | signal processing without hardware: levels, weighting, YIN pitch, notes, tuning, PolyTune, FFT, spectrum bands, onsets, tempo |
+| `lib/dsp/` | signal processing without hardware: levels, weighting, YIN pitch, notes, tuning, strum tuner, FFT, spectrum bands, onsets, tempo |
 | `test/test_dsp/` | unit tests of `lib/dsp`, run on the PC |
 
 ## Building

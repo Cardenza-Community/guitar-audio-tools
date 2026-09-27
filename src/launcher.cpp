@@ -35,7 +35,7 @@ static void iconTuner(M5Canvas &c, int x, int y) {
   c.fillTriangle(x - 5, sy + 12, x + 5, sy + 12, x, sy + 5, GREEN);
 }
 
-static void iconPolyTune(M5Canvas &c, int x, int y) {
+static void iconStrumTuner(M5Canvas &c, int x, int y) {
   // six strings, each with its own tuning marker
   const int offset[] = {-8, 3, 0, 12, -3, 0};
   c.drawFastHLine(x - 30, y, 61, GREEN);
@@ -117,7 +117,7 @@ struct Entry {
 static Entry entries[] = {
     {"Decibel meter", "sound level in dB", iconDecibel, decibelMeterApp()},
     {"Guitar tuner", "needle tuner, cents", iconTuner, tunerApp()},
-    {"PolyTune", "all strings at once", iconPolyTune, polyTuneApp()},
+    {"Strum Tuner", "all strings at once", iconStrumTuner, strumTunerApp()},
     {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
     {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
     {"Metronome", "click, accents, tap", iconMetronome, nullptr},
@@ -139,7 +139,7 @@ void draw() {
 
   char position[8];
   snprintf(position, sizeof(position), "%d/%d", selected + 1, COUNT);
-  ui::header("Audiotools", position);
+  ui::header("Guitar Audio Tools", position);
 
   e.icon(c, ui::WIDTH / 2, 50);
 

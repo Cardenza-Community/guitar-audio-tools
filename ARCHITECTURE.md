@@ -1,4 +1,4 @@
-# Audiotools – architecture
+# Guitar Audio Tools – architecture
 
 One firmware for the M5Stack Cardputer ADV containing several audio apps.
 A shared core does the hard work; each app is a thin layer on top of it.
@@ -7,7 +7,7 @@ A shared core does the hard work; each app is a thin layer on top of it.
 
 ```
 ┌──────────────────────── APPS (one file each) ─────────────────────────┐
-│ Decibel │ Tuner │ PolyTune │ Spectrum │ BPM │ Vocal │ Recorder │ Monitor │
+│ Decibel │ Tuner │ Strum Tuner │ Spectrum │ BPM │ Metronome │ Intonation │ Recorder │
 └────────────────────────────────────────────────────────────────────────┘
 ┌──────────── DSP library (lib/dsp: pure C++, no hardware) ─────────────┐
 │ level (RMS, dB SPL, A-weighting, Leq) · pitch (YIN) · fft · bands      │
@@ -74,7 +74,7 @@ to the app. No sound is lost between blocks (needed for BPM and recording).
 | Part | Used by |
 |------|---------|
 | pitch detection (YIN) + needle gauge | tuner, vocal trainer |
-| FFT | spectrum, PolyTune, BPM |
+| FFT | spectrum, strum tuner, BPM |
 | level (dB SPL, Leq, A-weighting) | decibel meter, monitor |
 | SD card + WAV writer | recorder, monitor |
 
@@ -87,7 +87,7 @@ to the app. No sound is lost between blocks (needed for BPM and recording).
 | 2 | Tuner: needle gauge ±50 cents in 5-cent steps, green centre ±3 cents, big note name | YIN already works; also verify the real sample rate (440 Hz reads 441.0 Hz) |
 | 3 | Metronome (instead of a vocal intonation trainer) | needs the speaker, not the microphone: an app must be able to run without `audio_in` |
 | 4 | Spectrum analyser: green/yellow/red bars with peak hold | introduces FFT |
-| 5 | PolyTune (all strings at once) | FFT + tuner knowledge; needs fine frequency resolution (E2–A2 are 28 Hz apart) |
+| 5 | Strum Tuner (all strings at once) | FFT + tuner knowledge; needs fine frequency resolution (E2–A2 are 28 Hz apart) |
 | 6 | BPM detector (listening and tap tempo) | FFT/onsets, gapless audio |
 | 7 | Recorder to SD card | SD + WAV |
 | 8 | (dropped: night/snoring monitor – the firmware stays focused on musicians) | |

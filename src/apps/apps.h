@@ -6,6 +6,6 @@
 App *micTestApp();
 App *decibelMeterApp();
 App *tunerApp();
-App *polyTuneApp();
+App *strumTunerApp();
 App *spectrumApp();
 App *bpmApp();

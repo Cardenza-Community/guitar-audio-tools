@@ -1,4 +1,4 @@
-#include "polytune.h"
+#include "strum_tuner.h"
 #include <algorithm>
 #include <cmath>
 #include "notes.h"
@@ -7,7 +7,7 @@ namespace dsp {
 
 static const double PI = 3.14159265358979323846;
 
-PolyTuner::PolyTuner(float sampleRate, size_t length)
+StrumTuner::StrumTuner(float sampleRate, size_t length)
     : sampleRate_(sampleRate), window_(length), windowed_(length) {
   for (size_t i = 0; i < length; i++) {
     window_[i] = (float)(0.5 - 0.5 * std::cos(2 * PI * i / (length - 1)));   // Hann
@@ -18,7 +18,7 @@ PolyTuner::PolyTuner(float sampleRate, size_t length)
 // Goertzel algorithm: the spectrum at one single frequency.
 // The loop runs in float (the ESP32-S3 has no double-precision hardware);
 // the unit tests check that this keeps the precision.
-double PolyTuner::amplitudeAt(double hz) const {
+double StrumTuner::amplitudeAt(double hz) const {
   float c = (float)(2 * std::cos(2 * PI * hz / sampleRate_));
   float s1 = 0, s2 = 0;
   for (float v : windowed_) {
@@ -33,7 +33,7 @@ double PolyTuner::amplitudeAt(double hz) const {
 static const double STEP = 1.0057929410678534;   // 2^(10/1200): 10 cents
 
 // golden-section search for the maximum between the neighbouring scan points
-PolyTuner::Peak PolyTuner::refine(double hz) const {
+StrumTuner::Peak StrumTuner::refine(double hz) const {
   double a = hz / STEP, b = hz * STEP;
   const double g = 0.6180339887;
   double c = b - g * (b - a), d = a + g * (b - a);
@@ -51,19 +51,19 @@ PolyTuner::Peak PolyTuner::refine(double hz) const {
   return {peak, amplitudeAt(peak), false};
 }
 
-void PolyTuner::bandLimits(double target, int harmonic, double &lo, double &hi) {
+void StrumTuner::bandLimits(double target, int harmonic, double &lo, double &hi) {
   const double band = std::pow(2.0, 100 / 1200.0);     // +-100 cents
   lo = target * harmonic / band;
   hi = target * harmonic * band;
 }
 
-std::vector<float> PolyTuner::scan(double loHz, double hiHz) const {
+std::vector<float> StrumTuner::scan(double loHz, double hiHz) const {
   std::vector<float> a;
   for (double f = loHz; f <= hiHz; f *= STEP) a.push_back((float)amplitudeAt(f));
   return a;
 }
 
-void PolyTuner::setBackground(const float *ring, size_t start, float a4, const int *midi) {
+void StrumTuner::setBackground(const float *ring, size_t start, float a4, const int *midi) {
   size_t n = windowed_.size();
   for (size_t i = 0; i < n; i++) windowed_[i] = ring[(start + i) % n] * window_[i];
   for (int s = 0; s < GUITAR_STRINGS; s++) {
@@ -77,7 +77,7 @@ void PolyTuner::setBackground(const float *ring, size_t start, float a4, const i
   hasBackground_ = true;
 }
 
-std::vector<PolyTuner::Peak> PolyTuner::findPeaks(double loHz, double hiHz, int band) const {
+std::vector<StrumTuner::Peak> StrumTuner::findPeaks(double loHz, double hiHz, int band) const {
   // coarse scan in 10-cent steps
   std::vector<float> amps = scan(loHz, hiHz);
   const std::vector<float> *bg = hasBackground_ ? &background_[band] : nullptr;
@@ -98,7 +98,7 @@ std::vector<PolyTuner::Peak> PolyTuner::findPeaks(double loHz, double hiHz, int 
   return peaks;
 }
 
-PolyTuner::Peak PolyTuner::pickPeak(double loHz, double hiHz, int band, const StringReading *lower,
+StrumTuner::Peak StrumTuner::pickPeak(double loHz, double hiHz, int band, const StringReading *lower,
                                     int lowerCount) const {
   std::vector<Peak> peaks = findPeaks(loHz, hiHz, band);
   if (peaks.empty()) return {std::sqrt(loHz * hiHz), 0, false};
@@ -132,7 +132,7 @@ PolyTuner::Peak PolyTuner::pickPeak(double loHz, double hiHz, int band, const St
   return best;
 }
 
-void PolyTuner::analyse(const float *x, float a4, StringReading out[GUITAR_STRINGS], const int *midi) {
+void StrumTuner::analyse(const float *x, float a4, StringReading out[GUITAR_STRINGS], const int *midi) {
   for (size_t i = 0; i < windowed_.size(); i++) windowed_[i] = x[i] * window_[i];
 
   double strongest = 0;

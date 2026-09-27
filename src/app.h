@@ -1,4 +1,4 @@
-// Interface that every Audiotools app implements.
+// Interface that every Guitar Audio Tools app implements.
 // main.cpp shows the menu, starts the selected app and feeds it with audio,
 // key presses and drawing requests. See ARCHITECTURE.md.
 #pragma once

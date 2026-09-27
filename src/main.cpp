@@ -1,4 +1,4 @@
-// Audiotools for the M5Stack Cardputer ADV
+// Guitar Audio Tools for the M5Stack Cardputer ADV
 //
 // Shows the app launcher, runs the selected app and feeds it with
 // microphone samples, key presses and drawing requests. See ARCHITECTURE.md.
@@ -101,7 +101,7 @@ void loop() {
     if (showingHelp) {
       const ui::HelpItem *items = nullptr;
       int count = current ? current->help(items) : launcher::help(items);
-      ui::helpPage(current ? current->name() : "Audiotools", items, count);
+      ui::helpPage(current ? current->name() : "Guitar Audio Tools", items, count);
     } else if (current) {
       current->draw(ui::canvas);
       ui::drawFlash();

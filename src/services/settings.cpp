@@ -5,6 +5,8 @@ namespace settings {
 
 static Preferences prefs;
 
+// The storage keeps its first name "audiotools" (from before the firmware was
+// called Guitar Audio Tools): renaming it would lose the saved settings.
 void begin() { prefs.begin("audiotools", false); }
 
 // isKey() first: Preferences logs an error when reading a key that was never saved

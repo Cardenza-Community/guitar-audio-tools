@@ -1,5 +1,5 @@
 // Two real strums of all six open strings (electric guitar, unplugged), as
-// the PolyTune app analysed them: 4 kHz, 600 samples of pluck noise first,
+// the Strum Tuner app analysed them: 4 kHz, 600 samples of pluck noise first,
 // then the 4096 analysed samples.
 //  - STRUM_GOOD: a clear strum; on the Cardputer it read (E2..E4)
 //    +1.9 +7.9 -1.2 +6.5 +1.4 +7.2 cents, which matched the single-string tuner.
