@@ -18,12 +18,18 @@ Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
 with *Decibel meter*, *Guitar tuner*, *PolyTune*, *Spectrum*, *BPM* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
-- Launcher: `,` / `/` browse the apps, `Enter` opens one, `Esc` (top left key) returns to the launcher.
-- Decibel meter: `a` A/Z weighting, `s` Fast/Slow, `r` reset Leq/Max/Min,
+Every app: `h` shows a help page with its keys (big, readable font), `Esc` goes
+back to the launcher. The keys follow one scheme: `Enter` = the main action,
+`,` / `/` (left/right) = change a mode or value, `;` / `.` (up/down) = microphone
+gain. All text is white or coloured (no grey text: it is hard to read on the
+small display).
+
+- Launcher: `,` / `/` browse the apps, `Enter` opens one.
+- Decibel meter: `a` A/Z weighting, `s` Fast/Slow, `Enter` (or `r`) reset Leq/Max/Min,
   `c` calibration (`;`/`.` ±0.5 dB, `,`/`/` ±5 dB, `Enter` saves, `c` cancels).
   Samples at 32 kHz; A-weighting follows IEC 61672 within 0.25 dB up to 8 kHz.
   Automatic range: codec gain 18 dB, switches to 0 dB for very loud sound.
-- Guitar tuner: `m` GUITAR / CHROMATIC mode, `,`/`/` reference pitch A4 −1/+1 Hz
+- Guitar tuner: `Enter` (or `m`) GUITAR / CHROMATIC mode, `,`/`/` reference pitch A4 −1/+1 Hz
   (430–450), `;`/`.` microphone gain. Needle ±50 cents, green centre ±3 cents.
   GUITAR mode always shows the nearest string of the standard tuning, even when
   it is more than a semitone off ("E −90, tune up"). Measured accuracy with
@@ -37,19 +43,20 @@ with *Decibel meter*, *Guitar tuner*, *PolyTune*, *Spectrum*, *BPM* and *Mic tes
   ±3 cents; an arrow above the column says which way to tune: yellow for
   10–50 cents, red for more than 50; "?" = string not heard). Weak strums,
   handling noise and steady background tones in the room are ignored.
-  `;`/`.` microphone gain. Accuracy on synthetic chords ±1.3 cents; real strums
+  `;`/`.` microphone gain, `Enter` clears the result. Accuracy on synthetic chords ±1.3 cents; real strums
   matched the single-string tuner.
 - Spectrum: 16 bars 60 Hz – 16 kHz of green/yellow/red blocks, FFT of 2048
   samples at 32 kHz every 32 ms, bars fall slowly, peaks hold 0.8 s. Automatic
   sensitivity: the scale jumps to the loudest band and recovers 6 dB/s.
-  `p` peaks on/off, `r` bar range 20 / 30 / 40 dB.
+  `Enter` (or `p`) peaks on/off, `,` / `/` (or `r`) bar range 20 / 30 / 40 dB.
 - BPM: AUTO listens to music (spectral-flux onsets in ~20 bands, a pulse comb
   with the half/double tempo "family" chooses the beat, autocorrelation over
   2–4 beats refines it; first reading after ~3 s, then twice per second over up
   to 6 s). The shown tempo keeps its octave; a new tempo must last 1.5 s,
   2/3 or 3/2 of the shown one 3 s. Grey + "uncertain" when the rhythm is not
-  clear. TAP counts space/Enter presses and claps. A dot flashes on the beat.
-  `m` AUTO/TAP, `,` /2, `/` x2, `r` restart, `d` dump onset data (serial).
+  clear. `Enter` or space switches to tapping at once (tempo after 3 taps,
+  exactly as tapped); 3 s without a tap: listening again. A dot flashes on the
+  beat. `,` /2, `/` x2, `r` restart, `d` dump onset data (serial).
   Tested on songs played from a phone: Sandstorm 136.1, Levels 126.0, Bad
   Romance 119, Thunderstruck 133, Another One Bites the Dust 110.
 - Mic test: `;` / `.` change the analog microphone gain (0–30 dB in 3 dB steps),

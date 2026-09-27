@@ -96,9 +96,27 @@ class PolyTuneApp : public App {
     }
   }
 
+  int help(const ui::HelpItem *&items) const override {
+    static const ui::HelpItem HELP[] = {
+        {"strum", "all 6 open strings"},
+        {"marker", "up: sharp, down: flat"},
+        {"arrow", "tune: yellow 10-50 c, red"},
+        {"", "more than 50 cents"},
+        {"?", "string not heard"},
+        {"; .", "microphone gain + / -"},
+        {"Enter", "clear the result"},
+    };
+    items = HELP;
+    return sizeof(HELP) / sizeof(HELP[0]);
+  }
+
   void onKey(const Key &key) override {
     if (key.ch == ';') es8311::setPgaGain(es8311::pgaGain() + 3);
     if (key.ch == '.') es8311::setPgaGain(es8311::pgaGain() - 3);
+    if (key.enter) {
+      haveResult_ = false;
+      weak_ = false;
+    }
   }
 
   void draw(M5Canvas &c) override {
@@ -143,21 +161,21 @@ class PolyTuneApp : public App {
 
       // string name and deviation
       c.setTextSize(2);
-      c.setTextColor(!haveResult_ ? DARKGREY : show ? WHITE : DARKGREY);
+      c.setTextColor(!haveResult_ || show ? WHITE : ORANGE);
       c.setCursor(x - 5, 102);
       c.print(show || !haveResult_ ? NAMES[s] : "?");
       if (show) {
         char text[8];
         snprintf(text, sizeof(text), "%+d", (int)lroundf(r.cents));
         c.setTextSize(1);
-        c.setTextColor(LIGHTGREY);
+        c.setTextColor(WHITE);
         c.setCursor(x - c.textWidth(text) / 2, 118);
         c.print(text);
       }
     }
     if (!haveResult_) {
       c.setTextSize(1);
-      c.setTextColor(LIGHTGREY);
+      c.setTextColor(WHITE);
       const char *hint = state_ == State::Collecting ? "listening..." : "strum all 6 open strings";
       c.setCursor((ui::WIDTH - c.textWidth(hint)) / 2, 118);
       c.print(hint);
@@ -169,7 +187,7 @@ class PolyTuneApp : public App {
       c.print("too quiet: strum louder / closer");
       return;
     }
-    ui::footer(";. gain   Esc back");
+    ui::footerHelp();
   }
 
  private:

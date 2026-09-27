@@ -148,17 +148,34 @@ void draw() {
   c.fillTriangle(ui::WIDTH - 7, 50, ui::WIDTH - 17, 40, ui::WIDTH - 17, 60, DARKGREY);
 
   c.setTextSize(2);
-  c.setTextColor(e.app ? WHITE : DARKGREY);
+  c.setTextColor(WHITE);
   c.setCursor((ui::WIDTH - c.textWidth(e.title)) / 2, 88);
   c.print(e.title);
 
   c.setTextSize(1);
-  c.setTextColor(e.app ? LIGHTGREY : ORANGE);
+  c.setTextColor(e.app ? WHITE : ORANGE);
   const char *line = e.app ? e.description : "coming soon";
   c.setCursor((ui::WIDTH - c.textWidth(line)) / 2, 108);
   c.print(line);
 
-  ui::footer(",/ browse   Enter open   Esc back");
+  c.setTextSize(1);
+  c.setTextColor(YELLOW);
+  c.setCursor(3, ui::FOOTER_Y);
+  c.print(", / browse   Enter open   h help");
+}
+
+static const ui::HelpItem HELP[] = {
+    {", /", "previous / next app"},
+    {"Enter", "open the app"},
+    {"Esc", "back here from an app"},
+    {"h", "help (in every app)"},
+    {"", "the last opened app is"},
+    {"", "shown after power-on"},
+};
+
+int help(const ui::HelpItem *&items) {
+  items = HELP;
+  return sizeof(HELP) / sizeof(HELP[0]);
 }
 
 App *onKey(const Key &key) {

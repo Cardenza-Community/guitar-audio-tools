@@ -1,7 +1,7 @@
 // Decibel meter: sound level in dB SPL, A or Z weighted, Fast or Slow,
 // with Leq (average energy), Max, Min and a rating of the noise.
 //
-// Keys: a  A/Z weighting     s  Fast/Slow      r  reset Leq/Max/Min
+// Keys: a  A/Z weighting     s  Fast/Slow      Enter/r  reset Leq/Max/Min
 //       c  calibration: ; . +-0.5 dB, , / +-5 dB, Enter saves, c cancels
 //
 // Range: normally the codec gain is 18 dB (quiet rooms up to about 100 dB).
@@ -73,6 +73,20 @@ class DecibelMeterApp : public App {
     logToSerial(peak);
   }
 
+  int help(const ui::HelpItem *&items) const override {
+    static const ui::HelpItem HELP[] = {
+        {"a", "A: like the ear, Z: flat"},
+        {"s", "Fast 1/8 s, Slow 1 s"},
+        {"Enter", "reset Leq, Max, Min"},
+        {"c", "calibrate to a phone app"},
+        {"Leq", "average since reset"},
+        {"Max/Min", "loudest / quietest"},
+        {"LOUD", "range for very loud"},
+    };
+    items = HELP;
+    return sizeof(HELP) / sizeof(HELP[0]);
+  }
+
   void onKey(const Key &key) override {
     if (calibrating_) {
       if (key.ch == ';') calEdit_ += 0.5f;
@@ -94,7 +108,7 @@ class DecibelMeterApp : public App {
       meter_->setWeighting(meter_->weighting() == dsp::Weighting::A ? dsp::Weighting::Z
                                                                     : dsp::Weighting::A);
     if (key.ch == 's') slowMode_ = !slowMode_;
-    if (key.ch == 'r') meter_->reset();
+    if (key.ch == 'r' || key.enter) meter_->reset();
     if (key.ch == 'c') {
       calibrating_ = true;
       calEdit_ = calibration_;
@@ -135,7 +149,7 @@ class DecibelMeterApp : public App {
 
     // measuring time (top right) and statistics row
     c.setTextSize(1);
-    c.setTextColor(LIGHTGREY);
+    c.setTextColor(WHITE);
     int seconds = (int)meter_->seconds();
     c.setCursor(196, 18);
     c.printf("%02d:%02d", seconds / 60 % 100, seconds % 60);
@@ -143,7 +157,7 @@ class DecibelMeterApp : public App {
     float values[] = {meter_->leqDb() + cal, meter_->maxDb() + cal, meter_->minDb() + cal};
     for (int i = 0; i < 3; i++) {
       c.setCursor(i * 80 + 2, 92);
-      c.setTextColor(DARKGREY);
+      c.setTextColor(YELLOW);
       c.print(labels[i]);
       c.setTextColor(WHITE);
       c.printf(" %5.1f", max(values[i], 0.0f));
@@ -157,7 +171,7 @@ class DecibelMeterApp : public App {
     c.setCursor(2, 105);
     c.print(overload_ ? "OVERLOAD" : r->text);
 
-    ui::footer("a A/Z  s F/S  r reset  c calibrate");
+    ui::footerHelp();
   }
 
  private:
@@ -179,7 +193,7 @@ class DecibelMeterApp : public App {
     c.drawFastVLine(xOf(barPeak_), Y - 2, H + 4, WHITE);
     // scale
     c.setTextSize(1);
-    c.setTextColor(DARKGREY);
+    c.setTextColor(WHITE);
     for (int db = 40; db <= 100; db += 20) {
       c.drawFastVLine(xOf(db), Y + H + 1, 3, DARKGREY);
       c.setCursor(xOf(db) - 5, Y + H + 5);

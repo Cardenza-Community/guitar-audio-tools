@@ -12,4 +12,7 @@ void draw();
 // Handles a key; returns the app to open, or nullptr.
 App *onKey(const Key &key);
 
+// Help page of the launcher (the h key); returns the number of lines.
+int help(const ui::HelpItem *&items);
+
 }  // namespace launcher

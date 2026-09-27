@@ -12,17 +12,20 @@
 #include "services/ui.h"
 
 App *current = nullptr;         // the running app, nullptr = launcher
+bool showingHelp = false;       // the h key: help page instead of the app
 
 // ---------- apps ----------
 
 void openApp(App *app) {
   current = app;
+  showingHelp = false;
   current->enter();
   if (!audio_in::start(current->sampleRate(), current->micGain()))
     Serial.println("audio_in::start failed");
 }
 
 void closeApp() {
+  showingHelp = false;
   audio_in::stop();
   current->exit();
   current = nullptr;
@@ -43,6 +46,12 @@ void handleKeys() {
   if (!M5Cardputer.Keyboard.isChange() || !M5Cardputer.Keyboard.isPressed()) return;
   auto state = M5Cardputer.Keyboard.keysState();
 
+  // while the help page is shown, any key closes it (Esc too)
+  if (showingHelp) {
+    showingHelp = false;
+    return;
+  }
+
   Key key;
   key.enter = state.enter;
   key.del = state.del;
@@ -54,6 +63,8 @@ void handleKeys() {
     key.ch = ch;
     if (ch == '`') {              // Esc
       if (current) closeApp();
+    } else if (ch == 'h') {       // help page
+      showingHelp = true;
     } else {
       deliver(key);
     }
@@ -87,8 +98,15 @@ void loop() {
   if (millis() - lastDraw >= 33) {
     lastDraw = millis();
     ui::clear();
-    if (current) current->draw(ui::canvas);
-    else launcher::draw();
+    if (showingHelp) {
+      const ui::HelpItem *items = nullptr;
+      int count = current ? current->help(items) : launcher::help(items);
+      ui::helpPage(current ? current->name() : "Audiotools", items, count);
+    } else if (current) {
+      current->draw(ui::canvas);
+    } else {
+      launcher::draw();
+    }
     ui::push();
   }
   delay(1);

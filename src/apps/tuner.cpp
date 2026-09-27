@@ -7,7 +7,8 @@
 //    with a "tune up" / "tune down" hint.
 //  - CHROMATIC: the nearest of all 12 notes, for other instruments,
 //    other tunings or singing.
-// Other keys: , / reference pitch A4 -1 / +1 Hz (remembered), ; . mic gain.
+// Other keys: , / reference pitch A4 -1 / +1 Hz (remembered), ; . mic gain,
+// Enter = m.
 #include <memory>
 #include <vector>
 #include "apps.h"
@@ -74,8 +75,21 @@ class TunerApp : public App {
     }
   }
 
+  int help(const ui::HelpItem *&items) const override {
+    static const ui::HelpItem HELP[] = {
+        {"Enter", "guitar / chromatic mode"},
+        {", /", "reference A4 -1 / +1 Hz"},
+        {"; .", "microphone gain + / -"},
+        {"green", "in tune: within 3 cents"},
+        {"guitar", "nearest string EADGBE"},
+        {"chrom.", "nearest of all 12 notes"},
+    };
+    items = HELP;
+    return sizeof(HELP) / sizeof(HELP[0]);
+  }
+
   void onKey(const Key &key) override {
-    if (key.ch == 'm') {
+    if (key.ch == 'm' || key.enter) {
       chromatic_ = !chromatic_;
       settings::putInt("tun_chrom", chromatic_);
       makeDetector();
@@ -123,14 +137,14 @@ class TunerApp : public App {
 
     drawScale(c);
     if (show) {
-      uint16_t color = !live ? DARKGREY : inTune ? GREEN : fabsf(cents) <= 15 ? YELLOW : ORANGE;
+      uint16_t color = !live ? LIGHTGREY : inTune ? GREEN : fabsf(cents) <= 15 ? YELLOW : ORANGE;
       c.drawWideLine(pointX(38, needleCents_), pointY(38, needleCents_),
                      pointX(RADIUS - 3, needleCents_), pointY(RADIUS - 3, needleCents_), 1.5f, color);
     }
 
     // note name in the middle, octave small next to it
     if (show) {
-      uint16_t color = !live ? DARKGREY : inTune ? GREEN : WHITE;
+      uint16_t color = !live ? LIGHTGREY : inTune ? GREEN : WHITE;
       c.setTextColor(color);
       c.setTextSize(4);
       int w = c.textWidth(noteName);
@@ -141,7 +155,7 @@ class TunerApp : public App {
       c.print(octave);
 
       // deviation in cents (left) and frequency / string (right)
-      c.setTextColor(live ? WHITE : DARKGREY);
+      c.setTextColor(live ? WHITE : LIGHTGREY);
       c.setCursor(2, 100);
       c.printf("%+.0f c", cents);
       if (live && !inTune && fabsf(cents) > 50) {
@@ -151,7 +165,7 @@ class TunerApp : public App {
         c.print(cents < 0 ? "tune up" : "tune down");
       }
       c.setTextSize(1);
-      c.setTextColor(live ? LIGHTGREY : DARKGREY);
+      c.setTextColor(live ? WHITE : LIGHTGREY);
       char hzText[16];
       snprintf(hzText, sizeof(hzText), "%.1f Hz", lastHz_);
       c.setCursor(ui::WIDTH - 2 - c.textWidth(hzText), 104);
@@ -164,13 +178,13 @@ class TunerApp : public App {
       }
     } else {
       c.setTextSize(1);
-      c.setTextColor(DARKGREY);
+      c.setTextColor(WHITE);
       const char *hint = "play a string";
       c.setCursor(PIVOT_X - c.textWidth(hint) / 2, 100);
       c.print(hint);
     }
 
-    ui::footer("m mode  ,/ A4  ;. gain  Esc back");
+    ui::footerHelp();
   }
 
  private:
@@ -196,7 +210,7 @@ class TunerApp : public App {
                  pointY(RADIUS - length, cents), color);
     }
     c.setTextSize(1);
-    c.setTextColor(DARKGREY);
+    c.setTextColor(WHITE);
     const int labels[] = {-50, -25, 25, 50};
     for (int cents : labels) {
       char text[6];

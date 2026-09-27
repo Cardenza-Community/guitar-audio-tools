@@ -13,10 +13,21 @@ const int FOOTER_Y = 126;        // bottom line with key help
 
 extern M5Canvas canvas;
 
+// One line of an app's help page: the key(s) and what they do.
+struct HelpItem {
+  const char *keys;
+  const char *text;
+};
+
 void begin();
 void clear();
 void header(const char *title, const char *right = nullptr);
 void footer(const char *help);
+// the standard bottom line: "h: help   Esc: back" in yellow
+void footerHelp();
+// full-screen help page (bigger, clearer font), shown while h is active;
+// up to 7 lines of about 34 characters
+void helpPage(const char *title, const HelpItem *items, int count);
 void push();                     // copy the canvas to the display
 
 }  // namespace ui

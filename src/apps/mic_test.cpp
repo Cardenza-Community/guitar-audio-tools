@@ -60,6 +60,18 @@ class MicTestApp : public App {
     }
   }
 
+  int help(const ui::HelpItem *&items) const override {
+    static const ui::HelpItem HELP[] = {
+        {"; .", "gain + / - (3 dB steps)"},
+        {"g", "gain test: play a steady"},
+        {"", "tone, see serial log"},
+        {"d", "send 2 s of sound to PC"},
+        {"CLIP", "too loud: less gain"},
+    };
+    items = HELP;
+    return sizeof(HELP) / sizeof(HELP[0]);
+  }
+
   void onKey(const Key &key) override {
     if (key.ch == ';') es8311::setPgaGain(es8311::pgaGain() + 3);
     if (key.ch == '.') es8311::setPgaGain(es8311::pgaGain() - 3);
@@ -107,11 +119,11 @@ class MicTestApp : public App {
       c.setTextColor(fabsf(n.cents) <= 5 ? GREEN : WHITE);
       c.printf("%6.1f Hz %s%d %+d", shownHz_, n.name, n.octave, (int)lroundf(n.cents));
     } else {
-      c.setTextColor(DARKGREY);
+      c.setTextColor(WHITE);
       c.print("   --- Hz");
     }
 
-    ui::footer(";/. gain  g gain test  d dump  Esc");
+    ui::footerHelp();
   }
 
  private:

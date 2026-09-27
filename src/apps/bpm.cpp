@@ -7,13 +7,15 @@
 //       the same tempo). A new tempo is shown when it lasts 1.5 s (3 readings
 //       in a row); 2/3 or 3/2 of the shown tempo - a typical misreading of
 //       music with strong off-beats - has to last 3 s (6 readings).
-// TAP:  tap the tempo with the space bar / Enter, or clap: claps are detected
-//       as onsets and count as taps.
+// TAP:  pressing Enter or the space bar switches to tapping at once; the tapped
+//       tempo is shown after 3 taps, exactly as tapped (no octave guessing).
+//       3 s without a tap: back to listening, which then keeps the tapped
+//       octave. (Claps need no tapping: AUTO hears them like drum hits.)
 // A dot flashes on every beat; in AUTO it follows the music (every clear onset
 // near a predicted beat pulls the beat clock a little towards it).
-// Keys: m AUTO/TAP, , halve / / double the reading (for tempos read at the
-//       other octave), r start again, d dump the last 8 s of per-band onsets
-//       to the serial console (also on "d" sent over serial; for analysis).
+// Keys: Enter/space tap, , halve / / double the reading (for tempos read at
+//       the other octave), r start again, d dump the last 8 s of per-band
+//       onsets to the serial console (also on "d" sent over serial).
 #include <algorithm>
 #include <memory>
 #include <vector>
@@ -36,6 +38,7 @@ const float SAME_TEMPO = 0.04f;          // readings within 4 % are the same tem
 const int CONFIRM_NEW = 3;               // readings in a row for a new tempo
 const int CONFIRM_RELATED = 6;           // ... for 2/3 or 3/2 of the shown tempo
 const size_t DUMP_FRAMES = 1000;         // 8 s of per-band onsets at 125 frames/s
+const uint32_t TAP_TIMEOUT_MS = 3000;    // no tap for this long: back to listening
 
 class BpmApp : public App {
  public:
@@ -64,10 +67,9 @@ class BpmApp : public App {
     for (size_t i = 0; i < n; i++) {
       tempo_->push(onsets_->value(i));
       remember(onsets_->bandFlux(i));
-      if (!onsets_->isOnset(i)) continue;
-      if (tap_) tapAt(now);                     // a clap is a tap
-      else nudgeBeatClock(now);
+      if (onsets_->isOnset(i) && !tap_) nudgeBeatClock(now);
     }
+    if (tap_ && now - lastTapMs_ > TAP_TIMEOUT_MS) tap_ = false;   // back to listening
     if (!tap_ && tempo_->ready() && now - lastEstimateMs_ >= ESTIMATE_EVERY_S * 1000) {
       lastEstimateMs_ = now;
       dsp::TempoEstimator::Result r = tempo_->estimate();
@@ -78,16 +80,35 @@ class BpmApp : public App {
     }
   }
 
+  int help(const ui::HelpItem *&items) const override {
+    static const ui::HelpItem HELP[] = {
+        {"Enter", "tap the beat (or space);"},
+        {"", "3 s no tap: listen again"},
+        {", /", "tempo /2  x2"},
+        {"r", "start again"},
+        {"grey", "rhythm not clear"},
+        {"dot", "flashes on the beat"},
+        {"claps", "heard like drum hits"},
+    };
+    items = HELP;
+    return sizeof(HELP) / sizeof(HELP[0]);
+  }
+
   void onKey(const Key &key) override {
-    if (key.ch == 'm') {
-      tap_ = !tap_;
-      restart();
-    }
     if (key.ch == 'r') restart();
     if (key.ch == 'd') dump();
     if (key.ch == ',') factor_ = std::max(0.25f, factor_ / 2);
     if (key.ch == '/') factor_ = std::min(4.0f, factor_ * 2);
-    if (tap_ && (key.ch == ' ' || key.enter)) tapAt(millis());
+    if (key.ch == ' ' || key.enter) {
+      uint32_t now = millis();
+      if (!tap_) {                             // start a new series of taps
+        tap_ = true;
+        taps_.reset();
+        factor_ = 1;                           // show exactly what is tapped
+      }
+      lastTapMs_ = now;
+      tapAt(now);
+    }
   }
 
   void draw(M5Canvas &c) override {
@@ -99,7 +120,7 @@ class BpmApp : public App {
     float shown = bpm_ * factor_;
     bool sure = tap_ || sureness_ >= SURE_CONFIDENCE;
     c.setTextSize(5);
-    c.setTextColor(bpm_ > 0 && sure ? WHITE : DARKGREY);
+    c.setTextColor(bpm_ == 0 ? WHITE : sure ? WHITE : ORANGE);
     c.setCursor(4, 24);
     if (bpm_ > 0) c.printf("%4.0f", shown);
     else c.print(" ---");
@@ -125,15 +146,15 @@ class BpmApp : public App {
     c.setTextSize(1);
     c.setCursor(4, 84);
     if (tap_) {
-      c.setTextColor(LIGHTGREY);
-      if (taps_.taps() < 3) c.printf("tap or clap the beat (%d)", taps_.taps());
+      c.setTextColor(YELLOW);
+      if (taps_.taps() < 3) c.printf("keep tapping... (%d)", taps_.taps());
       else c.printf("%d taps", taps_.taps());
     } else if (bpm_ == 0) {
-      c.setTextColor(LIGHTGREY);
+      c.setTextColor(WHITE);
       c.print(tempo_->ready() ? "play music with a clear beat..." : "listening...");
     } else {
       // how clearly the rhythm repeats
-      c.setTextColor(LIGHTGREY);
+      c.setTextColor(WHITE);
       c.print("rhythm");
       int w = (int)(150 * std::min(1.0f, confidence_ / 0.6f));
       uint16_t color = confidence_ < MIN_CONFIDENCE ? RED : confidence_ < 0.3f ? YELLOW : GREEN;
@@ -141,13 +162,14 @@ class BpmApp : public App {
       c.drawRect(50, 84, 150, 7, DARKGREY);
     }
 
-    ui::footer(tap_ ? "space/clap tap  m mode  r reset" : "m tap  , /2  / x2  r reset  d dump");
+    ui::footerHelp();
   }
 
  private:
   void restart() {
     tempo_.reset(new dsp::TempoEstimator(onsets_->frameRate()));
     taps_.reset();
+    tap_ = false;
     bpm_ = 0;
     confidence_ = 0;
     sureness_ = 0;
@@ -261,6 +283,7 @@ class BpmApp : public App {
   std::vector<uint16_t> dumpRing_;
   size_t dumpPos_ = 0, dumpCount_ = 0;
   uint32_t startMs_ = 0, lastEstimateMs_ = 0, nextBeatMs_ = 0, lastBeatMs_ = 0;
+  uint32_t lastTapMs_ = 0;
 };
 
 BpmApp instance;

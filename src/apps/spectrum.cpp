@@ -7,7 +7,8 @@
 //  - automatic sensitivity (lib/dsp/auto_range): the top of the scale jumps
 //    to the loudest band and comes down slowly, so quiet music from a phone
 //    moves the bars as well as a loud stereo
-// Keys: p peaks on/off, r range of the bars 20 / 30 / 40 dB (remembered).
+// Keys: Enter (or p) peaks on/off, , / (or r) range of the bars 20 / 30 / 40 dB
+// (remembered).
 #include <algorithm>
 #include <memory>
 #include <vector>
@@ -76,10 +77,23 @@ class SpectrumApp : public App {
     }
   }
 
+  int help(const ui::HelpItem *&items) const override {
+    static const ui::HelpItem HELP[] = {
+        {"Enter", "peaks on / off"},
+        {", /", "bar range 20 / 30 / 40 dB"},
+        {"", "(smaller = livelier bars)"},
+        {"bars", "60 Hz (left) - 16 kHz"},
+        {"", "sensitivity is automatic"},
+    };
+    items = HELP;
+    return sizeof(HELP) / sizeof(HELP[0]);
+  }
+
   void onKey(const Key &key) override {
-    if (key.ch == 'p') showPeaks_ = !showPeaks_;
-    if (key.ch == 'r') {
-      rangeIndex_ = (rangeIndex_ + 1) % 3;
+    if (key.ch == 'p' || key.enter) showPeaks_ = !showPeaks_;
+    int step = key.ch == '/' || key.ch == 'r' ? 1 : key.ch == ',' ? 2 : 0;   // 2 = one back
+    if (step) {
+      rangeIndex_ = (rangeIndex_ + step) % 3;
       range_->setRange(RANGES_DB[rangeIndex_]);
       settings::putInt("spec_range", rangeIndex_);
     }
@@ -106,7 +120,7 @@ class SpectrumApp : public App {
     }
     // frequency labels under every third bar
     c.setTextSize(1);
-    c.setTextColor(DARKGREY);
+    c.setTextColor(WHITE);
     for (int b = 0; b < BANDS; b += 3) {
       char text[8];
       float hz = bands_->centreHz(b);
@@ -117,7 +131,7 @@ class SpectrumApp : public App {
       c.setCursor(constrain(cx - c.textWidth(text) / 2, 0, ui::WIDTH - c.textWidth(text)), BOTTOM_Y + 3);
       c.print(text);
     }
-    ui::footer("p peaks   r range   Esc back");
+    ui::footerHelp();
   }
 
  private:

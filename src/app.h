@@ -3,8 +3,10 @@
 // key presses and drawing requests. See ARCHITECTURE.md.
 #pragma once
 #include <M5Cardputer.h>
+#include "services/ui.h"
 
-// One key press. The Esc key (top left, "`") is handled by main: back to menu.
+// One key press. Handled by main, not passed to apps: Esc (top left, "`")
+// goes back to the launcher, h shows the app's help page.
 struct Key {
   char ch = 0;          // printable character, 0 if none
   bool enter = false;
@@ -32,4 +34,10 @@ class App {
   virtual void draw(M5Canvas &canvas) = 0;
 
   virtual void onKey(const Key &key) {}
+
+  // Help page shown on the h key: returns the number of lines.
+  virtual int help(const ui::HelpItem *&items) const {
+    items = nullptr;
+    return 0;
+  }
 };
