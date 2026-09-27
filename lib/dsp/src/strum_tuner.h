@@ -42,10 +42,11 @@ constexpr float MIN_STRUM_AMPLITUDE = 40;
 // single-string tuner - each string gets a lighter pluck (less pitch glide, the
 // tone starts less sharp) and the tuner's YIN hears the slightly sharp upper
 // partials of wound strings (inharmonicity). The offsets are subtracted from
-// the readings. Default: measured on an unplugged electric guitar tuned with
-// the tuner, average of 3 strums (2026-09-27): each string within +-1 cent of
-// its average. Other guitars or strings: recalibrate (Strum tuner app, key c).
-constexpr float DEFAULT_CALIBRATION[6] = {-23.6f, -8.5f, -4.4f, -1.2f, 5.7f, 1.7f};
+// the readings. Default: measured on the author's acoustic guitar tuned with
+// the tuner (key c, average of 3 strums). An unplugged electric guitar read
+// much flatter on the low E (-23.6, -8.5, -4.4, -1.2, +5.7, +1.7): other
+// guitars or strings: recalibrate (Strum tuner app, key c).
+constexpr float DEFAULT_CALIBRATION[6] = {-5.3f, -6.9f, -1.87f, -0.79f, 4.37f, -0.15f};
 
 struct StringReading {
   bool found = false;    // a clear peak near the string's note

@@ -36,6 +36,9 @@ void flashGain(int db);
 // the same for any level, e.g. flashLevel("VOLUME", 7, 10, "")
 void flashLevel(const char *label, int value, int max, const char *unit);
 void drawFlash();
+// the reference pitch in big orange letters at the top right when it is not
+// 440 Hz: an accidental , or / in the tuner must not go unnoticed
+void drawA4(float a4);
 void push();                     // copy the canvas to the display
 
 }  // namespace ui

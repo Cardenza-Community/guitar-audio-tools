@@ -206,6 +206,7 @@ class StrumTunerApp : public App {
       c.setCursor((ui::WIDTH - c.textWidth(hint)) / 2, 118);
       c.print(hint);
     }
+    ui::drawA4(a4_);
     if (weak_) {                    // instead of the key help
       c.setTextSize(1);
       c.setTextColor(ORANGE);

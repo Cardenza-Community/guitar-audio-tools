@@ -9,6 +9,7 @@
 #include "app.h"
 #include "launcher.h"
 #include "version.h"
+#include "hw/es8311.h"
 #include "services/audio_in.h"
 #include "services/settings.h"
 #include "services/ui.h"
@@ -100,6 +101,7 @@ void setup() {
   M5Cardputer.begin(cfg, true);       // true = enable the keyboard too
   Serial.begin(115200);
   Serial.println("Guitar Audio Tools " FIRMWARE_VERSION);
+  es8311::installQuietMicCallback();  // no pop in the speaker when an app closes
   ui::begin();
   settings::begin();
   launcher::begin();

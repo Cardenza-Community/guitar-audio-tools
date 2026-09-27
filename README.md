@@ -5,7 +5,7 @@ Audio tools for guitarists and musicians on the M5Stack Cardputer ADV
 detector, spectrum analyser, sound level meter and more.
 
 ## Apps
-Version **1.0.0-beta.1** (shown on the launcher's help page `h` and printed on
+Version **1.0.0-beta.2** (shown on the launcher's help page `h` and printed on
 the serial console at start). In the order of the launcher:
 
 1. **Guitar tuner** – needle gauge ±50 cents, note name
@@ -45,7 +45,8 @@ small display).
   Time weighting Fast (1/8 s); the big number is rewritten twice per second
   like on real meters, the bar moves smoothly.
 - Guitar tuner: `Enter` (or `m`) GUITAR / CHROMATIC mode, `,`/`/` reference pitch A4 −1/+1 Hz
-  (430–450), `;`/`.` microphone gain. Needle ±50 cents, green centre ±3 cents.
+  (430–450; when it is not 440, "A4 438" is shown big and orange at the top right in
+  the tuner, Strum tuner and Intonation), `;`/`.` microphone gain. Needle ±50 cents, green centre ±3 cents.
   GUITAR mode always shows the nearest string of the standard tuning, even when
   it is more than a semitone off ("E −90, tune up"). Measured accuracy with
   tones from a laptop speaker (220/440/880 Hz): within ±0.15 cents.
@@ -64,9 +65,9 @@ small display).
   `;`/`.` microphone gain, `Enter` clears the result, `c` calibration.
   Accuracy on synthetic chords ±1.3 cents. In a real strum the low strings read
   flat compared with the single-string tuner (lighter pluck = less pitch glide,
-  inharmonic wound strings): a default correction measured on an unplugged
-  electric guitar is applied (E −23.6, A −8.5, D −4.4, G −1.2, B +5.7,
-  E +1.7 cents). For another guitar or new strings: tune with the tuner,
+  inharmonic wound strings): a default correction measured on an acoustic
+  guitar is applied (E −5.3, A −6.9, D −1.9, G −0.8, B +4.4, E −0.2 cents;
+  an unplugged electric guitar read much flatter on the low E, −23.6). For another guitar or new strings: tune with the tuner,
   press `c`, strum 3 times (saved; `Enter` in that screen restores the default).
 - Spectrum: 16 bars 60 Hz – 16 kHz of green/yellow/red blocks, FFT of 2048
   samples at 32 kHz every 32 ms, bars fall slowly, peaks hold 0.8 s. Automatic
@@ -120,7 +121,9 @@ small display).
   recording, `Del` delete (twice), `;`/`.` microphone gain (volume while
   playing). WAV files, 16 kHz mono, in `/recordings` on the SD card
   (REC_0001.wav ..., or a name typed right after recording: `Enter` saves, an
-  empty name or `Esc` keeps REC_...; nothing else on the card is touched). Samples are written in
+  empty name or `Esc` keeps REC_...; nothing else on the card is touched: an
+  existing `/recordings` folder is used as it is, a new recording never takes a
+  name that is already on the card, `.WAV` files of other apps included). Samples are written in
   16 KB blocks; a warning appears if the card is too slow and gaps occur.
 - Mic test: `;` / `.` change the analog microphone gain (0–30 dB in 3 dB steps),
   `g` runs an automatic gain test (play a steady tone; the level should rise
@@ -150,6 +153,9 @@ Credit for finding this goes to the
 [audio-spy](https://github.com/Tombotronic/audio-spy) project.
 
 ## Notes on the ADV microphone (ES8311)
+- When the microphone stops, M5Unified powers the whole codec down, which
+  pops in the speaker every time an app is closed. `es8311::installQuietMicCallback()`
+  replaces that callback: the codec is set up the same way but stays powered.
 Unlike the original Cardputer (SPM1423 PDM microphone wired straight to I2S),
 the ADV routes the microphone through the **ES8311** codec (I2C address 0x18).
 Firmware written for the original Cardputer does not set the codec up, so the

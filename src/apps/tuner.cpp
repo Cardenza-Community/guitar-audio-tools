@@ -196,6 +196,7 @@ class TunerApp : public App {
       c.print(hint);
     }
 
+    ui::drawA4(a4_);
     ui::footerHelp();
   }
 

@@ -30,6 +30,19 @@ void footer(const char *help) {
   canvas.print(help);
 }
 
+void drawA4(float a4) {
+  if (fabsf(a4 - 440.0f) < 0.01f) return;
+  char text[12];
+  snprintf(text, sizeof(text), "A4 %.0f", a4);
+  canvas.setTextSize(2);
+  int w = canvas.textWidth(text);
+  canvas.fillRect(WIDTH - w - 6, HEADER_HEIGHT, w + 6, 18, BLACK);
+  canvas.setTextColor(ORANGE);
+  canvas.setCursor(WIDTH - w - 3, HEADER_HEIGHT + 2);
+  canvas.print(text);
+  canvas.setTextSize(1);
+}
+
 void footerHelp() {
   canvas.setTextSize(1);
   canvas.setTextColor(YELLOW);

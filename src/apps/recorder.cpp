@@ -41,7 +41,7 @@ class RecorderApp : public App {
  public:
   const char *name() const override { return "Recorder"; }
   uint32_t sampleRate() const override { return RATE; }
-  int micGain() const override { return settings::getInt("g_rec", 18); }
+  int micGain() const override { return settings::getInt("g_rec", 24); }
 
   void enter() override {
     haveCard_ = storage::begin();

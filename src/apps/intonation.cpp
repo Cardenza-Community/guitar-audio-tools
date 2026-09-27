@@ -159,6 +159,7 @@ class IntonationApp : public App {
       c.print(text);
     }
     c.setTextSize(1);
+    ui::drawA4(a4_);
     ui::footerHelp();
   }
 

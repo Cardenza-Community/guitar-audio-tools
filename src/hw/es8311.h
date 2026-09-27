@@ -27,6 +27,14 @@ int pgaGain();
 // the idle amplifier then hums. Call after M5Cardputer.Speaker.end().
 void speakerOff();
 
+// Replaces M5Unified's microphone on/off callback. Switching the microphone on
+// sets the codec up exactly like M5Unified; switching it off does nothing:
+// M5Unified powers the whole codec down there, and that step pops audibly in
+// the speaker every time an app with the microphone is closed. The codec stays
+// powered (its DAC stays off), which costs only a few milliwatts.
+// Call once after M5Cardputer.begin().
+void installQuietMicCallback();
+
 uint8_t readRegister(uint8_t reg);
 void printRegisters();   // dumps the important registers to Serial
 

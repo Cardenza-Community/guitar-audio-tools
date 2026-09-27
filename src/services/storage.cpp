@@ -27,7 +27,9 @@ std::vector<Recording> recordings() {
   if (!dir) return list;
   for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
     String name = f.name();
-    if (!f.isDirectory() && name.endsWith(".wav")) {
+    String lower = name;
+    lower.toLowerCase();                  // other apps may write .WAV
+    if (!f.isDirectory() && lower.endsWith(".wav")) {
       list.push_back({String(DIR) + "/" + name, name.substring(0, name.length() - 4), (uint32_t)f.size()});
     }
     f.close();
@@ -37,12 +39,21 @@ std::vector<Recording> recordings() {
   return list;
 }
 
+// The next free REC_nnnn.wav. Checked against the card as well, so that a file
+// of any other app is never overwritten (FAT does not tell REC_0005.WAV from
+// REC_0005.wav, and an open for writing would empty it).
 String newRecordingPath() {
-  int highest = 0;
-  for (const Recording &r : recordings())
-    if (r.name.startsWith("REC_")) highest = std::max(highest, (int)r.name.substring(4).toInt());
+  int number = 0;
+  for (const Recording &r : recordings()) {
+    String upper = r.name;
+    upper.toUpperCase();
+    if (upper.startsWith("REC_")) number = std::max(number, (int)r.name.substring(4).toInt());
+  }
   char path[40];
-  snprintf(path, sizeof(path), "%s/REC_%04d.wav", DIR, highest + 1);
+  do {
+    number++;
+    snprintf(path, sizeof(path), "%s/REC_%04d.wav", DIR, number);
+  } while (SD.exists(path));
   return String(path);
 }
 
