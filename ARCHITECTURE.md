@@ -85,7 +85,7 @@ to the app. No sound is lost between blocks (needed for BPM and recording).
 | 0 | Skeleton: menu, gapless audio input, app interface, settings, PC tests | everything else builds on it |
 | 1 | Decibel meter: dB SPL, calibration, max, Leq, A-weighting | simplest app, validates the skeleton |
 | 2 | Tuner: needle gauge ±50 cents in 5-cent steps, green centre ±3 cents, big note name | YIN already works; also verify the real sample rate (440 Hz reads 441.0 Hz) |
-| 3 | Vocal intonation trainer | reuses the tuner |
+| 3 | Metronome (instead of a vocal intonation trainer) | needs the speaker, not the microphone: an app must be able to run without `audio_in` |
 | 4 | Spectrum analyser: green/yellow/red bars with peak hold | introduces FFT |
 | 5 | PolyTune (all strings at once) | FFT + tuner knowledge; needs fine frequency resolution (E2–A2 are 28 Hz apart) |
 | 6 | BPM detector (listening and tap tempo) | FFT/onsets, gapless audio |

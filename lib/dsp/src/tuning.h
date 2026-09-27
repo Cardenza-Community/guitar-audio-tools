@@ -24,7 +24,9 @@ StringMatch nearestGuitarString(float hz, float a4 = 440.0f);
 //    row agree (within 30 cents) and are clearly periodic (aperiodicity below
 //    `onsetMaxAperiodicity`). The noise of a pluck or fret buzz is not shown.
 //  - median of the last 5 readings throws away single wrong values,
-//  - an exponential average (in cents) calms the needle down,
+//  - an exponential average (in cents) calms the needle down; below 100 Hz
+//    (the low E string) twice as strongly: the low E is weak in a small
+//    microphone and single readings scatter more,
 //  - a change of more than 30 cents (another string) jumps immediately,
 //  - while a note rings, a reading 2x, 3x or 4x lower (a sub-harmonic, e.g. the
 //    low E string resonating while the high E decays) counts as the same note;
@@ -43,6 +45,9 @@ class PitchSmoother {
   float push(float hz, float aperiodicity = 0, float levelDb = 0);
   void reset();
   bool locked() const { return smoothed_ > 0; }
+  // counts every new note (onset confirmed); the tuner uses it to know when a
+  // string was just plucked and its pitch is still settling
+  unsigned notes() const { return notes_; }
 
  private:
   static const int HISTORY = 5;
@@ -59,6 +64,7 @@ class PitchSmoother {
   float levels_[LEVELS] = {};
   int levelCount_ = 0, levelNext_ = 0;
   int onsetCooldown_ = 0;       // a rising pluck is reported only once
+  unsigned notes_ = 0;
   float rememberedHz_ = 0;      // the note that faded out last
   int rememberLeft_ = 0;
 };

@@ -104,6 +104,7 @@ void loop() {
       ui::helpPage(current ? current->name() : "Audiotools", items, count);
     } else if (current) {
       current->draw(ui::canvas);
+      ui::drawFlash();
     } else {
       launcher::draw();
     }

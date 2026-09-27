@@ -1,7 +1,10 @@
 // Mic test: loudness in dBFS, waveform, pitch and note.
 // Keys: ; / . change the codec gain, g runs an automatic gain test,
-//       d dumps 2 s of raw samples to the serial console (for analysis on a PC).
+//       d arms a raw sample dump: the recording starts by itself at the next
+//       pluck (a jump in level; the click of the d key is ignored), keeps 0.1 s
+//       before it and lasts up to 3 s; then it is sent to the serial console.
 // Used to check the microphone and as a simple example of an app.
+#include <algorithm>
 #include <vector>
 #include "apps.h"
 #include "level.h"
@@ -9,6 +12,7 @@
 #include "pitch.h"
 #include "../hw/es8311.h"
 #include "../services/audio_in.h"
+#include "../services/settings.h"
 #include "../services/ui.h"
 
 namespace {
@@ -16,12 +20,16 @@ namespace {
 const int RATE = 16000;
 const size_t WINDOW = 2048;      // samples analysed at once (128 ms)
 const size_t HOP = 1024;         // analyse after every 1024 new samples (~16x per second)
-const size_t DUMP_SAMPLES = 2 * RATE;
+const size_t DUMP_SAMPLES = 3 * RATE;      // wanted length (shorter if RAM is short)
+const size_t PREROLL = RATE / 10;          // 0.1 s kept before the pluck
+const uint32_t IGNORE_KEY_MS = 400;        // the key click right after d
+const float TRIGGER_DB = 15;               // this much above the quiet level
 
 class MicTestApp : public App {
  public:
   const char *name() const override { return "Mic test"; }
   uint32_t sampleRate() const override { return RATE; }
+  int micGain() const override { return settings::getInt("g_mic", 24); }
 
   void enter() override {
     history_.assign(WINDOW, 0);
@@ -42,6 +50,8 @@ class MicTestApp : public App {
     std::vector<int16_t>().swap(ordered_);
     std::vector<float>().swap(signal_);
     std::vector<int16_t>().swap(dump_);
+    std::vector<int16_t>().swap(preroll_);
+    dumpState_ = DumpState::Idle;
   }
 
   void process(const int16_t *samples, size_t count) override {
@@ -49,7 +59,7 @@ class MicTestApp : public App {
     while (Serial.available()) {
       if (Serial.read() == 'd') startDump();
     }
-    if (dump_.capacity()) collectDump(samples, count);
+    if (dumpState_ != DumpState::Idle) collectDump(samples, count);
     for (size_t i = 0; i < count; i++) {
       history_[writePos_] = samples[i];
       writePos_ = (writePos_ + 1) % WINDOW;
@@ -73,8 +83,11 @@ class MicTestApp : public App {
   }
 
   void onKey(const Key &key) override {
-    if (key.ch == ';') es8311::setPgaGain(es8311::pgaGain() + 3);
-    if (key.ch == '.') es8311::setPgaGain(es8311::pgaGain() - 3);
+    if (key.ch == ';' || key.ch == '.') {
+      es8311::setPgaGain(es8311::pgaGain() + (key.ch == ';' ? 3 : -3));
+      settings::putInt("g_mic", es8311::pgaGain());
+      ui::flashGain(es8311::pgaGain());
+    }
     if (key.ch == 'g' && !sweeping_) startSweep();
     if (key.ch == 'd') startDump();
   }
@@ -82,7 +95,11 @@ class MicTestApp : public App {
   void draw(M5Canvas &c) override {
     char right[24];
     snprintf(right, sizeof(right), "PGA %d dB", es8311::pgaGain());
-    ui::header(sweeping_ ? "GAIN TEST - steady tone!" : "Mic test", right);
+    const char *title = dumpState_ == DumpState::Armed       ? "ARMED - pluck now!"
+                        : dumpState_ == DumpState::Recording ? "RECORDING..."
+                        : sweeping_                          ? "GAIN TEST - steady tone!"
+                                                             : "Mic test";
+    ui::header(title, right);
 
     // loudness: number + bar (-80 dBFS left, 0 dBFS right)
     c.setTextSize(2);
@@ -164,19 +181,52 @@ class MicTestApp : public App {
     }
   }
 
-  // Raw sample dump: 2 s of continuous samples, printed as text lines
+  // Raw sample dump, printed as text lines
   //   DUMP BEGIN rate=<nominal> n=<count>
   //   <32 comma-separated samples per line>
   //   DUMP END
+  // Armed by d; starts by itself at the next pluck (see the top of the file).
   void startDump() {
-    if (dump_.capacity()) return;             // already recording
-    dump_.reserve(DUMP_SAMPLES);
-    Serial.println("DUMP recording");
+    if (dumpState_ != DumpState::Idle) return;
+    size_t room = (ESP.getMaxAllocHeap() > 16384 ? ESP.getMaxAllocHeap() - 16384 : 0) / sizeof(int16_t);
+    dumpLength_ = std::min(DUMP_SAMPLES, room);
+    if (dumpLength_ < RATE) {
+      Serial.println("DUMP: not enough memory");
+      return;
+    }
+    dump_.reserve(dumpLength_);
+    preroll_.assign(PREROLL, 0);
+    prerollPos_ = 0;
+    quietDb_ = 0;
+    armedMs_ = millis();
+    dumpState_ = DumpState::Armed;
+    Serial.printf("DUMP armed (%u samples)\n", (unsigned)dumpLength_);
   }
 
   void collectDump(const int16_t *samples, size_t count) {
-    for (size_t i = 0; i < count && dump_.size() < DUMP_SAMPLES; i++) dump_.push_back(samples[i]);
-    if (dump_.size() < DUMP_SAMPLES) return;
+    if (dumpState_ == DumpState::Armed) {
+      // level of this chunk
+      double p = 0;
+      for (size_t i = 0; i < count; i++) p += (double)samples[i] * samples[i];
+      float db = 10 * log10f((float)(p / count) / (32768.0f * 32768.0f) + 1e-12f);
+      bool listening = millis() - armedMs_ > IGNORE_KEY_MS;
+      if (listening && quietDb_ == 0) quietDb_ = db;
+      if (listening && db < quietDb_) quietDb_ = db;
+      if (listening && db > quietDb_ + TRIGGER_DB) {
+        // the pluck: start with the 0.1 s kept before it
+        for (size_t i = 0; i < PREROLL; i++) dump_.push_back(preroll_[(prerollPos_ + i) % PREROLL]);
+        dumpState_ = DumpState::Recording;
+        Serial.println("DUMP recording");
+      } else {
+        for (size_t i = 0; i < count; i++) {
+          preroll_[prerollPos_] = samples[i];
+          prerollPos_ = (prerollPos_ + 1) % PREROLL;
+        }
+        return;
+      }
+    }
+    for (size_t i = 0; i < count && dump_.size() < dumpLength_; i++) dump_.push_back(samples[i]);
+    if (dump_.size() < dumpLength_) return;
     Serial.printf("DUMP BEGIN rate=%d n=%u\n", RATE, (unsigned)dump_.size());
     for (size_t i = 0; i < dump_.size(); i += 32) {
       for (size_t k = i; k < i + 32 && k < dump_.size(); k++) Serial.printf(k == i ? "%d" : ",%d", dump_[k]);
@@ -184,6 +234,8 @@ class MicTestApp : public App {
     }
     Serial.println("DUMP END");
     std::vector<int16_t>().swap(dump_);
+    std::vector<int16_t>().swap(preroll_);
+    dumpState_ = DumpState::Idle;
   }
 
   // Automatic gain test: PGA 0, 6 ... 30 dB, 2 s each, average level printed.
@@ -228,7 +280,13 @@ class MicTestApp : public App {
   int peak_ = 0;
   uint32_t lastPitchMs_ = 0, lastPrintMs_ = 0;
 
+  enum class DumpState { Idle, Armed, Recording };
+  DumpState dumpState_ = DumpState::Idle;
   std::vector<int16_t> dump_;      // raw samples being collected for a dump
+  std::vector<int16_t> preroll_;   // the last 0.1 s while armed
+  size_t prerollPos_ = 0, dumpLength_ = 0;
+  float quietDb_ = 0;
+  uint32_t armedMs_ = 0;
 
   bool sweeping_ = false;
   int sweepGain_ = 0, sweepBlocks_ = 0;

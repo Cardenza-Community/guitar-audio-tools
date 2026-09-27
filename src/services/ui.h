@@ -28,6 +28,10 @@ void footerHelp();
 // full-screen help page (bigger, clearer font), shown while h is active;
 // up to 7 lines of about 34 characters
 void helpPage(const char *title, const HelpItem *items, int count);
+// big "MIC GAIN 27 dB" box with a 0...30 dB bar for 1.5 s (after ; or .);
+// main draws it over the app with drawFlash()
+void flashGain(int db);
+void drawFlash();
 void push();                     // copy the canvas to the display
 
 }  // namespace ui

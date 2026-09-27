@@ -380,6 +380,18 @@ void test_smoother_new_pluck_after_fade_is_new_note() {
   TEST_ASSERT_FLOAT_WITHIN(0.05f, 82.41f, s.push(82.41f, 0.05f, -41));
 }
 
+void test_smoother_counts_notes_and_calms_low_e_more() {
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 3; i++) s.push(82.41f, 0.05f, -40);
+  TEST_ASSERT_EQUAL(1u, s.notes());
+  // a +20 cent reading moves the low E only 15 % of the way (3 cents)
+  float out = s.push(82.41f * std::pow(2.0f, 20 / 1200.0f), 0.05f, -40);
+  out = s.push(82.41f * std::pow(2.0f, 20 / 1200.0f), 0.05f, -40);
+  out = s.push(82.41f * std::pow(2.0f, 20 / 1200.0f), 0.05f, -40);   // median switched now
+  float cents = 1200 * std::log2(out / 82.41f);
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, 3.0f, cents);
+}
+
 void test_tuner_real_decaying_high_e() {
   // replay a real recording the way the tuner does (a reading every 512 samples);
   // the note was locked on E4 before this excerpt
@@ -824,6 +836,7 @@ int main() {
   RUN_TEST(test_smoother_new_pluck_starts_over);
   RUN_TEST(test_smoother_faded_note_keeps_its_echo);
   RUN_TEST(test_smoother_new_pluck_after_fade_is_new_note);
+  RUN_TEST(test_smoother_counts_notes_and_calms_low_e_more);
   RUN_TEST(test_tuner_real_decaying_high_e);
   RUN_TEST(test_decimator_passes_guitar_range);
   RUN_TEST(test_decimator_blocks_what_would_fold_down);

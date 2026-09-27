@@ -9,7 +9,7 @@ noise analysis, spectrum/spectrogram and an instrument tuner.
 3. **Polyphonic tuner** – strum all strings at once (like PolyTune)
 4. **Spectrum analyser** – green/yellow/red bars reacting to music
 5. **BPM detector** – from music or by tapping (tap tempo)
-6. **Vocal intonation trainer** – deviation from the target note in cents
+6. **Metronome** – for musicians (replaces the vocal intonation trainer idea)
 7. **Recorder** – WAV files on the SD card
 8. **Sound monitor** – night/snoring log, long-term level graph, sound alarm
 
@@ -21,7 +21,7 @@ with *Decibel meter*, *Guitar tuner*, *PolyTune*, *Spectrum*, *BPM* and *Mic tes
 Every app: `h` shows a help page with its keys (big, readable font), `Esc` goes
 back to the launcher. The keys follow one scheme: `Enter` = the main action,
 `,` / `/` (left/right) = change a mode or value, `;` / `.` (up/down) = microphone
-gain. All text is white or coloured (no grey text: it is hard to read on the
+gain (shown for 1.5 s as "MIC GAIN 27 dB", remembered per app). All text is white or coloured (no grey text: it is hard to read on the
 small display).
 
 - Launcher: `,` / `/` browse the apps, `Enter` opens one.
@@ -37,8 +37,12 @@ small display).
   The needle moves only after 3 agreeing, clearly periodic readings (pluck noise
   is not shown); GUITAR mode searches 60–420 Hz only (no octave errors at the
   pluck); a sub-harmonic of the ringing note (low E resonating while the high E
-  decays) is ignored; a new pluck (+6 dB) starts over.
-- PolyTune: strum all six open strings; after about 1.2 s one column per
+  decays) is ignored; a new pluck (+6 dB) starts over. For 0.5 s after a
+  pluck the needle is thin and light: the string starts sharp and settles
+  (the low E by 20–35 cents in the first second). Below 100 Hz the needle is
+  smoothed twice as strongly.
+- PolyTune: strum all six open strings; after about 1.5 s (0.5 s skipped:
+  the strings start sharp and settle) one column per
   string shows the deviation (marker up = sharp, down = flat, green centre
   ±3 cents; an arrow above the column says which way to tune: yellow for
   10–50 cents, red for more than 50; "?" = string not heard). Weak strums,

@@ -1,7 +1,7 @@
 // PolyTune: strum all six open strings, see which ones are out of tune.
 //
 // Flow: wait for a strum (the level jumps by 10 dB or more), skip the first
-// 150 ms (pluck noise), collect 1.024 s of sound, analyse all strings at once
+// 0.5 s (pluck noise, settling strings), collect 1.024 s of sound, analyse all strings at once
 // (lib/dsp/polytune) and show the result until the next strum.
 // The sound is reduced from 16 kHz to 4 kHz first: strings and their 2nd
 // harmonics are below 700 Hz, and 1 s at 4 kHz fits into 16 KB.
@@ -32,7 +32,10 @@ const int RATE = 16000;
 const int FACTOR = 4;                       // 16 kHz -> 4 kHz
 const float LOW_RATE = RATE / FACTOR;
 const size_t LENGTH = 4096;                 // analysed block: 1.024 s at 4 kHz
-const size_t SKIP = 600;                    // 150 ms of pluck noise at 4 kHz
+// 0.5 s after the strum are skipped: pluck noise, and the strings start
+// sharp and settle (the low E by 20...35 cents in the first second, measured);
+// the single-string tuner is read on the settled tone, too
+const size_t SKIP = 2000;
 const size_t LEVEL_BLOCK = 512;             // level measured every 32 ms (16 kHz samples)
 const float ONSET_JUMP_DB = 10;
 const float ONSET_MIN_DBFS = -58;
@@ -50,7 +53,7 @@ class PolyTuneApp : public App {
  public:
   const char *name() const override { return "PolyTune"; }
   uint32_t sampleRate() const override { return RATE; }
-  int micGain() const override { return 24; }
+  int micGain() const override { return settings::getInt("g_poly", 24); }
 
   void enter() override {
     decimator_.reset(new dsp::Decimator(FACTOR));
@@ -111,8 +114,11 @@ class PolyTuneApp : public App {
   }
 
   void onKey(const Key &key) override {
-    if (key.ch == ';') es8311::setPgaGain(es8311::pgaGain() + 3);
-    if (key.ch == '.') es8311::setPgaGain(es8311::pgaGain() - 3);
+    if (key.ch == ';' || key.ch == '.') {
+      es8311::setPgaGain(es8311::pgaGain() + (key.ch == ';' ? 3 : -3));
+      settings::putInt("g_poly", es8311::pgaGain());
+      ui::flashGain(es8311::pgaGain());
+    }
     if (key.enter) {
       haveResult_ = false;
       weak_ = false;

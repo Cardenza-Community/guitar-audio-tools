@@ -58,6 +58,32 @@ void helpPage(const char *title, const HelpItem *items, int count) {
   canvas.setFont(&fonts::Font0);             // back to the default font
 }
 
+static int flashDb = 0;
+static uint32_t flashUntil = 0;
+
+void flashGain(int db) {
+  flashDb = db;
+  flashUntil = millis() + 1500;
+}
+
+void drawFlash() {
+  if ((int32_t)(flashUntil - millis()) <= 0) return;
+  const int w = 180, h = 44, x = (WIDTH - w) / 2, y = (HEIGHT - h) / 2;
+  canvas.fillRoundRect(x, y, w, h, 6, NAVY);
+  canvas.drawRoundRect(x, y, w, h, 6, YELLOW);
+  char text[24];
+  snprintf(text, sizeof(text), "MIC GAIN %d dB", flashDb);
+  canvas.setTextSize(2);
+  canvas.setTextColor(WHITE);
+  canvas.setCursor(x + (w - canvas.textWidth(text)) / 2, y + 6);
+  canvas.print(text);
+  // bar 0 ... 30 dB
+  int barW = w - 20;
+  canvas.drawRect(x + 10, y + 28, barW, 9, WHITE);
+  canvas.fillRect(x + 11, y + 29, (barW - 2) * flashDb / 30, 7, YELLOW);
+  canvas.setTextSize(1);
+}
+
 void push() { canvas.pushSprite(&M5Cardputer.Display, 0, 0); }
 
 }  // namespace ui

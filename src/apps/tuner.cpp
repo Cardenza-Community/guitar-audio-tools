@@ -27,6 +27,9 @@ const int RATE = 16000;
 const size_t HOP = 512;                  // a new reading every 32 ms
 const float MIN_LEVEL_DBFS = -70;        // quieter than this: no pitch search
 const float IN_TUNE_CENTS = 3;
+// A plucked string starts sharp and settles (the low E by 20...35 cents in the
+// first second, measured). The needle is thin and light during this time.
+const uint32_t SETTLE_MS = 500;
 // Pitch search range. GUITAR mode only looks where strings can be (E2 - 4
 // semitones ... E4 + 4 semitones), so an octave error at the pluck (e.g. the
 // 2nd harmonic of the high E, 659 Hz) cannot pin the needle to the right.
@@ -40,7 +43,7 @@ class TunerApp : public App {
  public:
   const char *name() const override { return "Guitar tuner"; }
   uint32_t sampleRate() const override { return RATE; }
-  int micGain() const override { return 24; }
+  int micGain() const override { return settings::getInt("g_tuner", 24); }
 
   void enter() override {
     chromatic_ = settings::getInt("tun_chrom", 0);
@@ -99,8 +102,11 @@ class TunerApp : public App {
       a4_ = constrain(a4_ + (key.ch == '/' ? 1 : -1), 430.0f, 450.0f);
       settings::putFloat("a4", a4_);
     }
-    if (key.ch == ';') es8311::setPgaGain(es8311::pgaGain() + 3);
-    if (key.ch == '.') es8311::setPgaGain(es8311::pgaGain() - 3);
+    if (key.ch == ';' || key.ch == '.') {
+      es8311::setPgaGain(es8311::pgaGain() + (key.ch == ';' ? 3 : -3));
+      settings::putInt("g_tuner", es8311::pgaGain());
+      ui::flashGain(es8311::pgaGain());
+    }
   }
 
   void draw(M5Canvas &c) override {
@@ -137,9 +143,15 @@ class TunerApp : public App {
 
     drawScale(c);
     if (show) {
-      uint16_t color = !live ? LIGHTGREY : inTune ? GREEN : fabsf(cents) <= 15 ? YELLOW : ORANGE;
+      // right after a pluck the string is still settling (it starts a little
+      // sharp): a thin light needle; then the normal coloured one
+      bool settling = live && (int32_t)(settleUntilMs_ - millis()) > 0;
+      uint16_t color = !live || settling ? LIGHTGREY
+                       : inTune          ? GREEN
+                       : fabsf(cents) <= 15 ? YELLOW : ORANGE;
       c.drawWideLine(pointX(38, needleCents_), pointY(38, needleCents_),
-                     pointX(RADIUS - 3, needleCents_), pointY(RADIUS - 3, needleCents_), 1.5f, color);
+                     pointX(RADIUS - 3, needleCents_), pointY(RADIUS - 3, needleCents_),
+                     settling ? 0.5f : 1.5f, color);
     }
 
     // note name in the middle, octave small next to it
@@ -230,6 +242,10 @@ class TunerApp : public App {
 
     float aperiodicity = raw > 0 ? yin_->lastAperiodicity() : 1;
     hz_ = smoother_.push(raw, aperiodicity, db);
+    if (smoother_.notes() != notesSeen_) {         // a new pluck: let it settle
+      notesSeen_ = smoother_.notes();
+      settleUntilMs_ = millis() + SETTLE_MS;
+    }
     if (hz_ > 0) {
       lastHz_ = hz_;
       lastPitchMs_ = millis();
@@ -253,6 +269,8 @@ class TunerApp : public App {
   float a4_ = 440;
   float hz_ = 0, lastHz_ = 0, needleCents_ = 0;
   uint32_t lastPitchMs_ = 0, lastLogMs_ = 0;
+  unsigned notesSeen_ = 0;
+  uint32_t settleUntilMs_ = 0;
 };
 
 TunerApp instance;

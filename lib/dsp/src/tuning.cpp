@@ -79,6 +79,7 @@ float PitchSmoother::push(float hz, float aperiodicity, float levelDb) {
     count_++;
     if (count_ < confirm_) return 0;
     smoothed_ = median();
+    notes_++;
     return smoothed_;
   }
 
@@ -103,8 +104,9 @@ float PitchSmoother::push(float hz, float aperiodicity, float levelDb) {
   if (std::fabs(centsBetween(m, smoothed_)) > 30) {
     smoothed_ = m;                               // another note: jump there
   } else {
-    // move 30 % of the way, in cents (musical steps)
-    smoothed_ *= std::pow(2.0f, 0.3f * centsBetween(m, smoothed_) / 1200);
+    // move 30 % of the way (15 % below 100 Hz), in cents (musical steps)
+    float step = smoothed_ < 100 ? 0.15f : 0.3f;
+    smoothed_ *= std::pow(2.0f, step * centsBetween(m, smoothed_) / 1200);
   }
   return smoothed_;
 }
