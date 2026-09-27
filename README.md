@@ -15,7 +15,7 @@ noise analysis, spectrum/spectrogram and an instrument tuner.
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner*, *PolyTune*, *Spectrum* and *Mic test*. The other apps show as "coming soon" in the launcher.
+with *Decibel meter*, *Guitar tuner*, *PolyTune*, *Spectrum*, *BPM* and *Mic test*. The other apps show as "coming soon" in the launcher.
 
 ## Controls
 - Launcher: `,` / `/` browse the apps, `Enter` opens one, `Esc` (top left key) returns to the launcher.
@@ -43,6 +43,15 @@ with *Decibel meter*, *Guitar tuner*, *PolyTune*, *Spectrum* and *Mic test*. The
   samples at 32 kHz every 32 ms, bars fall slowly, peaks hold 0.8 s. Automatic
   sensitivity: the scale jumps to the loudest band and recovers 6 dB/s.
   `p` peaks on/off, `r` bar range 20 / 30 / 40 dB.
+- BPM: AUTO listens to music (spectral-flux onsets in ~20 bands, a pulse comb
+  with the half/double tempo "family" chooses the beat, autocorrelation over
+  2–4 beats refines it; first reading after ~3 s, then twice per second over up
+  to 6 s). The shown tempo keeps its octave; a new tempo must last 1.5 s,
+  2/3 or 3/2 of the shown one 3 s. Grey + "uncertain" when the rhythm is not
+  clear. TAP counts space/Enter presses and claps. A dot flashes on the beat.
+  `m` AUTO/TAP, `,` /2, `/` x2, `r` restart, `d` dump onset data (serial).
+  Tested on songs played from a phone: Sandstorm 136.1, Levels 126.0, Bad
+  Romance 119, Thunderstruck 133, Another One Bites the Dust 110.
 - Mic test: `;` / `.` change the analog microphone gain (0–30 dB in 3 dB steps),
   `g` runs an automatic gain test (play a steady tone; the level should rise
   6 dB per step). The serial console (115200 baud) prints the values 4× per second.
@@ -56,7 +65,7 @@ with *Decibel meter*, *Guitar tuner*, *PolyTune*, *Spectrum* and *Mic test*. The
 | `src/apps/` | the apps (`mic_test.cpp`, ...) |
 | `src/services/` | `audio_in` (gapless microphone stream), `settings` (NVS), `ui` (screen helpers) |
 | `src/hw/es8311.*` | direct access to the ES8311 codec (gain, register dump) |
-| `lib/dsp/` | signal processing without hardware: levels, weighting, YIN pitch, notes, tuning, PolyTune, FFT, spectrum bands |
+| `lib/dsp/` | signal processing without hardware: levels, weighting, YIN pitch, notes, tuning, PolyTune, FFT, spectrum bands, onsets, tempo |
 | `test/test_dsp/` | unit tests of `lib/dsp`, run on the PC |
 
 ## Building

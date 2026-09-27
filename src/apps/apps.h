@@ -8,3 +8,4 @@ App *decibelMeterApp();
 App *tunerApp();
 App *polyTuneApp();
 App *spectrumApp();
+App *bpmApp();

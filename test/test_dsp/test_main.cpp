@@ -19,6 +19,9 @@
 #include "fft.h"
 #include "spectrum.h"
 #include "auto_range.h"
+#include "onset.h"
+#include "tempo.h"
+#include "songs.h"
 #include <complex>
 #include "weighting.h"
 
@@ -631,6 +634,152 @@ void test_autorange_range_change() {
   TEST_ASSERT_EQUAL_FLOAT(-50.0f, a.bottom());
 }
 
+// ---------- onsets and tempo ----------
+
+// 16 kHz audio with hits at the given tempo. kind 0: metronome clicks;
+// kind 1: drums (kick on every beat, snare on 2 and 4, hi-hat on eighths).
+static std::vector<int16_t> rhythm(float bpm, float seconds, int kind, float noise = 200) {
+  const int fs = 16000;
+  std::vector<float> x((size_t)(seconds * fs), 0.0f);
+  uint32_t seed = 42;
+  auto rnd = [&]() {
+    seed = seed * 1103515245u + 12345u;
+    return ((int32_t)(seed >> 16) % 2000) / 1000.0f - 1;
+  };
+  auto hit = [&](float t, float freq, float amp, float decay, float noisy) {
+    size_t start = (size_t)(t * fs);
+    for (size_t i = 0; i < (size_t)(0.15f * fs) && start + i < x.size(); i++) {
+      float tt = (float)i / fs;
+      float env = amp * std::exp(-tt / decay);
+      x[start + i] += env * ((1 - noisy) * std::sin(2 * PI_F * freq * tt) + noisy * rnd());
+    }
+  };
+  float beat = 60 / bpm;
+  for (int b = 0; b * beat < seconds; b++) {
+    float t = b * beat + 0.05f;
+    if (kind == 0) {
+      hit(t, 1500, 12000, 0.01f, 0.3f);
+    } else {
+      hit(t, 60, 14000, 0.08f, 0.1f);                           // kick
+      if (b % 2 == 1) hit(t, 200, 9000, 0.05f, 0.8f);           // snare
+      hit(t, 8000, 3000, 0.02f, 1.0f);                          // hi-hat
+      hit(t + beat / 2, 8000, 3000, 0.02f, 1.0f);               // hi-hat off-beat
+    }
+  }
+  std::vector<int16_t> out(x.size());
+  for (size_t i = 0; i < x.size(); i++)
+    out[i] = (int16_t)std::max(-32767.0f, std::min(32767.0f, x[i] + noise * rnd()));
+  return out;
+}
+
+static float detectBpm(const std::vector<int16_t> &audio, int *onsets = nullptr) {
+  dsp::OnsetDetector od(16000);
+  dsp::TempoEstimator te(od.frameRate());
+  int hits = 0;
+  for (size_t i = 0; i < audio.size(); i += 256) {
+    size_t n = od.process(audio.data() + i, std::min<size_t>(256, audio.size() - i));
+    for (size_t k = 0; k < n; k++) {
+      te.push(od.value(k));
+      if (od.isOnset(k)) hits++;
+    }
+  }
+  if (onsets) *onsets = hits;
+  return te.estimate().bpm;
+}
+
+void test_tempo_metronome() {
+  for (float bpm : {90.0f, 120.0f, 150.0f}) {
+    float got = detectBpm(rhythm(bpm, 10, 0));
+    printf("metronome %.0f -> %.2f\n", bpm, got);
+    TEST_ASSERT_FLOAT_WITHIN(0.5f, bpm, got);
+  }
+}
+
+void test_tempo_equal_clicks_prefer_about_120() {
+  // equally strong clicks at 174 BPM are also a valid 87 BPM (every beat with
+  // an extra click in between); like most BPM meters the tempo closer to
+  // 120 wins (the app has /2 and x2 keys for the other reading)
+  float got = detectBpm(rhythm(174, 10, 0));
+  TEST_ASSERT_FLOAT_WITHIN(0.5f, 87.0f, got);
+}
+
+void test_tempo_drums_with_eighth_hihats() {
+  // the hi-hats repeat twice per beat; the tempo must still be the beat
+  for (float bpm : {100.0f, 128.0f}) {
+    float got = detectBpm(rhythm(bpm, 10, 1));
+    printf("drums %.0f -> %.2f\n", bpm, got);
+    TEST_ASSERT_FLOAT_WITHIN(0.5f, bpm, got);
+  }
+}
+
+void test_tempo_silence_is_not_a_tempo() {
+  std::vector<int16_t> quiet = rhythm(120, 10, 0, 200);
+  for (auto &v : quiet) v = (int16_t)(v / 400);    // only faint noise remains... and clicks
+  std::vector<int16_t> noise(160000);
+  uint32_t seed = 3;
+  for (auto &v : noise) {
+    seed = seed * 1103515245u + 12345u;
+    v = (int16_t)((int32_t)(seed >> 16) % 400 - 200);
+  }
+  dsp::OnsetDetector od(16000);
+  dsp::TempoEstimator te(od.frameRate());
+  for (size_t i = 0; i < noise.size(); i += 256) {
+    size_t n = od.process(noise.data() + i, 256);
+    for (size_t k = 0; k < n; k++) te.push(od.value(k));
+  }
+  TEST_ASSERT_TRUE(te.estimate().confidence < 0.2f);
+}
+
+void test_tempo_first_reading_after_3_seconds() {
+  float got = detectBpm(rhythm(120, 3.3f, 0));
+  TEST_ASSERT_FLOAT_WITHIN(1.0f, 120.0f, got);
+}
+
+static float songBpm(const uint16_t *env, size_t n) {
+  dsp::TempoEstimator te(125);
+  for (size_t i = 0; i < n; i++) te.push(env[i] / 1000.0f);
+  return te.estimate().bpm;
+}
+
+void test_tempo_real_songs() {
+  TEST_ASSERT_FLOAT_WITHIN(1.0f, 119.0f, songBpm(SONG_BAD_ROMANCE, sizeof(SONG_BAD_ROMANCE) / 2));
+  TEST_ASSERT_FLOAT_WITHIN(1.0f, 133.0f, songBpm(SONG_THUNDERSTRUCK, sizeof(SONG_THUNDERSTRUCK) / 2));
+  TEST_ASSERT_FLOAT_WITHIN(1.0f, 110.0f, songBpm(SONG_ANOTHER_ONE, sizeof(SONG_ANOTHER_ONE) / 2));
+}
+
+void test_tempo_electronic_songs_exact() {
+  // programmed tempo: within 0.3 BPM
+  TEST_ASSERT_FLOAT_WITHIN(0.3f, 136.0f, songBpm(SONG_SANDSTORM, sizeof(SONG_SANDSTORM) / 2));
+  TEST_ASSERT_FLOAT_WITHIN(0.3f, 126.0f, songBpm(SONG_LEVELS, sizeof(SONG_LEVELS) / 2));
+}
+
+void test_tempo_near_silence_stays_in_range() {
+  dsp::TempoEstimator te(125);
+  for (size_t i = 0; i < sizeof(GAP_BETWEEN_SONGS) / 2; i++) te.push(GAP_BETWEEN_SONGS[i] / 1000.0f);
+  float bpm = te.estimate().bpm;
+  TEST_ASSERT_TRUE(bpm == 0 || (bpm >= 59 && bpm <= 201));
+}
+
+void test_onsets_find_claps() {
+  int hits = 0;
+  detectBpm(rhythm(120, 5, 0), &hits);      // 10 clicks in 5 s
+  TEST_ASSERT_INT_WITHIN(1, 10, hits);
+}
+
+void test_tap_tempo() {
+  dsp::TapTempo t;
+  float bpm = 0;
+  for (int i = 0; i < 6; i++) bpm = t.tap(1000 + i * 500);
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 120.0f, bpm);
+  // one tap missed (a 1 s gap): the median keeps 120
+  bpm = t.tap(1000 + 5 * 500 + 1000);
+  bpm = t.tap(1000 + 5 * 500 + 1500);
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 120.0f, bpm);
+  // a pause of 3 s starts a new series
+  t.tap(20000);
+  TEST_ASSERT_EQUAL(1, t.taps());
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -693,5 +842,15 @@ int main() {
   RUN_TEST(test_autorange_comes_down_slowly);
   RUN_TEST(test_autorange_silence_floor);
   RUN_TEST(test_autorange_range_change);
+  RUN_TEST(test_tempo_metronome);
+  RUN_TEST(test_tempo_equal_clicks_prefer_about_120);
+  RUN_TEST(test_tempo_drums_with_eighth_hihats);
+  RUN_TEST(test_tempo_silence_is_not_a_tempo);
+  RUN_TEST(test_tempo_first_reading_after_3_seconds);
+  RUN_TEST(test_tempo_real_songs);
+  RUN_TEST(test_tempo_electronic_songs_exact);
+  RUN_TEST(test_tempo_near_silence_stays_in_range);
+  RUN_TEST(test_onsets_find_claps);
+  RUN_TEST(test_tap_tempo);
   return UNITY_END();
 }
