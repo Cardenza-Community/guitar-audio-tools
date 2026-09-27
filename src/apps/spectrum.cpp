@@ -14,6 +14,7 @@
 // Keys: Enter (or p) peaks on/off, , / (or r) range of the bars 20 / 30 / 40 dB
 // (remembered), m 16 bars / third octaves.
 #include <algorithm>
+#include <esp_heap_caps.h>
 #include <memory>
 #include <vector>
 #include "apps.h"
@@ -40,7 +41,7 @@ struct Mode {
 };
 // below 60 Hz a phone speaker plays almost nothing; the 16 bars are better
 // spent on the audible range
-const char *const LABELS_THIRD[26] = {"50", nullptr, nullptr, "100", nullptr, nullptr, "200", nullptr,
+const char *const LABELS_THIRD[dsp::THIRD_OCTAVE_BANDS] = {"50", nullptr, nullptr, "100", nullptr, nullptr, "200", nullptr,
                                       nullptr, "400", nullptr, nullptr, nullptr, "1k", nullptr, nullptr,
                                       "2k", nullptr, nullptr, "4k", nullptr, nullptr, "8k", nullptr,
                                       nullptr, "16k"};
@@ -49,6 +50,13 @@ const Mode MODES[] = {
     {"1/3 oct", 4096, dsp::THIRD_OCTAVE_BANDS, dsp::THIRD_OCTAVE_MIN_HZ,
      dsp::THIRD_OCTAVE_MAX_HZ, 7, 9, 3, LABELS_THIRD},                          // 26 x 9 = 234 px
 };
+
+const int MODE_COUNT = sizeof(MODES) / sizeof(MODES[0]);
+
+// Memory check before building a mode (no PSRAM): the FFT buffer of the
+// third-octave mode is one 32 KB block, the whole mode about 80 KB. With a
+// fragmented heap the allocation could fail and crash - then the 16 bars stay.
+const size_t RESERVE_BYTES = 40000;      // left for the rest of the firmware
 
 // display
 const int SEGMENTS = 16, SEGMENT_H = 5, SEGMENT_GAP = 1;
@@ -66,7 +74,7 @@ class SpectrumApp : public App {
   int micGain() const override { return 18; }
 
   void enter() override {
-    mode_ = constrain(settings::getInt("spec_mode", 0), 0, 1);
+    mode_ = constrain(settings::getInt("spec_mode", 0), 0, MODE_COUNT - 1);
     setUpMode();
     rangeIndex_ = constrain(settings::getInt("spec_range", 1), 0, 2);
     range_.reset(new dsp::AutoRange(RANGES_DB[rangeIndex_], MIN_TOP_DB));
@@ -114,9 +122,9 @@ class SpectrumApp : public App {
       settings::putInt("spec_range", rangeIndex_);
     }
     if (key.ch == 'm') {
-      mode_ = 1 - mode_;
+      mode_ = (mode_ + 1) % MODE_COUNT;
+      setUpMode();                                  // may fall back to mode 0
       settings::putInt("spec_mode", mode_);
-      setUpMode();
     }
   }
 
@@ -125,6 +133,7 @@ class SpectrumApp : public App {
     const Mode &m = MODES[mode_];
     snprintf(right, sizeof(right), "%s  %.0f dB%s", m.name, RANGES_DB[rangeIndex_], showPeaks_ ? "  peaks" : "");
     ui::header("Spectrum", right);
+    bool warning = messageMs_ != 0 && millis() - messageMs_ < 2500;
     for (int b = 0; b < m.bands; b++) {
       int x = m.left + b * m.barStep;
       int lit = segmentsFor(bar_[b]);
@@ -140,6 +149,14 @@ class SpectrumApp : public App {
         }
       }
     }
+    if (warning) {                                  // over the tops of the bars
+      c.fillRect(0, 13, ui::WIDTH, 11, BLACK);
+      c.setTextSize(1);
+      c.setTextColor(ORANGE);
+      c.setCursor(4, 15);
+      c.print("not enough memory for 1/3 octaves");
+    }
+
     // frequency labels under some bars
     c.setTextSize(1);
     c.setTextColor(WHITE);
@@ -165,8 +182,15 @@ class SpectrumApp : public App {
  private:
   // (re)builds the analyser for the current mode
   void setUpMode() {
+    // free the old buffers first, then check the memory for the new ones
+    bands_.reset();
+    std::vector<int16_t>().swap(history_);
+    std::vector<int16_t>().swap(ordered_);
+    if (mode_ != 0 && !enoughMemory(MODES[mode_].fftSize)) {
+      mode_ = 0;
+      messageMs_ = millis();
+    }
     const Mode &m = MODES[mode_];
-    bands_.reset();                               // free the old one first (memory)
     bands_.reset(new dsp::SpectrumBands(RATE, m.fftSize, m.bands, m.minHz, m.maxHz));
     history_.assign(m.fftSize, 0);
     ordered_.assign(m.fftSize, 0);
@@ -175,7 +199,14 @@ class SpectrumApp : public App {
       bar_[b] = peak_[b] = dsp::SILENCE_DB;
       peakMs_[b] = 0;
     }
-    Serial.printf("spectrum: %s, free heap %u\n", m.name, (unsigned)ESP.getFreeHeap());
+  }
+
+  // the biggest buffer is the complex FFT block (8 bytes per sample); the
+  // whole mode needs about 20 bytes per sample
+  static bool enoughMemory(size_t fftSize) {
+    size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    size_t total = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    return largest >= fftSize * 8 + 1024 && total >= fftSize * 20 + RESERVE_BYTES;
   }
 
   static uint16_t colorOf(int segment) {
@@ -190,7 +221,8 @@ class SpectrumApp : public App {
   void analyse() {
     size_t size = history_.size();
     int bandCount = MODES[mode_].bands;
-    for (size_t i = 0; i < size; i++) ordered_[i] = history_[(writePos_ + i) % size];
+    // the oldest sample is at writePos_: two block copies put them in order
+    std::rotate_copy(history_.begin(), history_.begin() + writePos_, history_.end(), ordered_.begin());
     float levels[MAX_BANDS];
     bands_->analyse(ordered_.data(), levels);
 
@@ -218,6 +250,7 @@ class SpectrumApp : public App {
   float bar_[MAX_BANDS], peak_[MAX_BANDS];
   uint32_t peakMs_[MAX_BANDS];
   int mode_ = 0;
+  uint32_t messageMs_ = 0;           // when the memory warning was shown (0 = never)
   std::unique_ptr<dsp::AutoRange> range_;
   int rangeIndex_ = 1;
   uint32_t lastMs_ = 0;

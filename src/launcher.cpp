@@ -1,4 +1,6 @@
 #include "launcher.h"
+#include <cstring>
+#include "version.h"
 #include "apps/apps.h"
 #include "services/settings.h"
 #include "services/ui.h"
@@ -146,24 +148,39 @@ struct Entry {
 
 // Adding an app: write it in src/apps/, declare it in apps.h, add a line here.
 static Entry entries[] = {
-    {"Decibel meter", "sound level in dB", iconDecibel, decibelMeterApp()},
     {"Guitar tuner", "needle tuner, cents", iconTuner, tunerApp()},
     {"Strum tuner", "all strings at once", iconStrumTuner, strumTunerApp()},
-    {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
-    {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
     {"Metronome", "click, accents, tap", iconMetronome, metronomeApp()},
-    {"Intonation", "guitar setup, fret 12", iconIntonation, intonationApp()},
+    {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
     {"Chords", "chord shapes: type a name", iconChords, chordsApp()},
     {"Scales", "scales on the fretboard", iconScales, scalesApp()},
     {"Recorder", "WAV on the SD card", iconRecorder, recorderApp()},
+    {"Intonation", "guitar setup, fret 12", iconIntonation, intonationApp()},
+    {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
+    {"Decibel meter", "sound level in dB", iconDecibel, decibelMeterApp()},
     {"Mic test", "diagnostics", iconMicTest, micTestApp()},
 };
 static const int COUNT = sizeof(entries) / sizeof(entries[0]);
 
 static int selected = 0;
 
+// The last opened app is saved by its title, not its position: the order of
+// the list can change without opening a different app after an update.
 void begin() {
-  selected = constrain(settings::getInt("last_app", 0), 0, COUNT - 1);
+  // before 1.0.0-beta.1 the position was saved ("last_app"), in this order
+  static const char *const OLD_ORDER[] = {"Decibel meter", "Guitar tuner", "Strum tuner", "Spectrum",
+                                          "BPM", "Metronome", "Intonation", "Chords", "Scales",
+                                          "Recorder", "Mic test"};
+  if (settings::has("last_app")) {
+    int old = settings::getInt("last_app", 0);
+    if (old >= 0 && old < (int)(sizeof(OLD_ORDER) / sizeof(OLD_ORDER[0])))
+      settings::putString("last_title", OLD_ORDER[old]);
+    settings::remove("last_app");
+  }
+  char title[24];
+  settings::getString("last_title", title, sizeof(title), entries[0].title);
+  for (int i = 0; i < COUNT; i++)
+    if (strcmp(entries[i].title, title) == 0) selected = i;
 }
 
 void draw() {
@@ -204,6 +221,7 @@ static const ui::HelpItem HELP[] = {
     {"h", "help (in every app)"},
     {nullptr, "the last opened app is shown"},
     {nullptr, "after power-on"},
+    {nullptr, "version " FIRMWARE_VERSION},
 };
 
 int help(const ui::HelpItem *&items) {
@@ -215,7 +233,7 @@ App *onKey(const Key &key) {
   if (key.ch == ',') selected = (selected + COUNT - 1) % COUNT;
   if (key.ch == '/') selected = (selected + 1) % COUNT;
   if (key.enter && entries[selected].app) {
-    settings::putInt("last_app", selected);
+    settings::putString("last_title", entries[selected].title);
     return entries[selected].app;
   }
   return nullptr;

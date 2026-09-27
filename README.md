@@ -4,18 +4,22 @@ Audio tools for guitarists and musicians on the M5Stack Cardputer ADV
 (ESP32-S3): a precise tuner, a strum tuner for all six strings at once, BPM
 detector, spectrum analyser, sound level meter and more.
 
-## Apps (planned)
-1. **Decibel meter** – calibrated dB SPL, max, average (Leq), A-weighting
-2. **Guitar tuner** – needle gauge ±50 cents, note name
-3. **Strum tuner** – strum all six open strings, see which are out of tune
-4. **Spectrum analyser** – green/yellow/red bars reacting to music
-5. **BPM detector** – from music or by tapping (tap tempo)
-6. **Metronome** – clicks with accents, tempo from BPM or tapping
-7. **Intonation** – guitar setup: open string (or 12th-fret harmonic) vs. the
+## Apps
+Version **1.0.0-beta.1** (shown on the launcher's help page `h` and printed on
+the serial console at start). In the order of the launcher:
+
+1. **Guitar tuner** – needle gauge ±50 cents, note name
+2. **Strum tuner** – strum all six open strings, see which are out of tune
+3. **Metronome** – clicks with accents, tempo from BPM or tapping
+4. **BPM detector** – from music or by tapping (tap tempo)
+5. **Chords** – chord dictionary: type a name, see the shape on the fretboard
+6. **Scales** – scales on the whole fretboard
+7. **Recorder** – WAV files on the SD card
+8. **Intonation** – guitar setup: open string (or 12th-fret harmonic) vs. the
    12th fret, tells which way to move the saddle, overview of all 6 strings
-8. **Chords** – chord dictionary: type a name, see the shape on the fretboard
-9. **Scales** – scales on the whole fretboard
-10. **Recorder** – WAV files on the SD card
+9. **Spectrum analyser** – green/yellow/red bars (16 bars or third octaves)
+10. **Decibel meter** – calibrated dB SPL, max, average (Leq), A-weighting
+11. **Mic test** – diagnostics
 
 The firmware is meant for musicians and guitarists. (A night/snoring monitor
 was dropped for that reason. Checking guitar intonation up the neck needs no
@@ -23,8 +27,7 @@ extra app: the tuner in CHROMATIC mode shows any note and its deviation.
 A vocal trainer was dropped too: the chord and scale reference fits better.)
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
-Current state: skeleton (launcher, gapless audio input, app interface, PC tests)
-with *Decibel meter*, *Guitar tuner*, *Strum tuner*, *Spectrum*, *BPM*, *Metronome*, *Intonation*, *Chords*, *Scales*, *Recorder* and *Mic test*. The other apps show as "coming soon" in the launcher.
+Current state: all apps done and tested on the device (beta).
 
 ## Controls
 Every app: `h` shows a help page with its keys (big, readable font), `Esc` goes
@@ -33,7 +36,8 @@ back to the launcher. The keys follow one scheme: `Enter` = the main action,
 gain (shown for 1.5 s as "MIC GAIN 27 dB", remembered per app). All text is white or coloured (no grey text: it is hard to read on the
 small display).
 
-- Launcher: `,` / `/` browse the apps, `Enter` opens one.
+- Launcher: `,` / `/` browse the apps (round in both directions), `Enter` opens
+  one. After power-on the last opened app is selected (saved by its title).
 - Decibel meter: `a` A/Z weighting, `Enter` (or `r`) reset Leq/Max/Min,
   `c` calibration (`;`/`.` ±0.5 dB, `,`/`/` ±5 dB, `Enter` saves, `c` cancels).
   Samples at 32 kHz; A-weighting follows IEC 61672 within 0.25 dB up to 8 kHz.
@@ -69,7 +73,12 @@ small display).
   sensitivity: the scale jumps to the loudest band and recovers 6 dB/s.
   `Enter` (or `p`) peaks on/off, `,` / `/` (or `r`) bar range 20 / 30 / 40 dB.
   `m` switches to 26 ISO third-octave bands 50 Hz – 16 kHz (FFT of 4096 samples)
-  for finding feedback or room resonances; the mode is remembered.
+  for finding feedback or room resonances; the mode is remembered. Limits of
+  this mode: the lowest bands are only 11-15 Hz wide (2 FFT bins), so a low tone
+  also lights the neighbouring bar about 8-11 dB lower (the highest bar is the
+  right one); the 16k band is cut at 16 kHz (half the sample rate) and reads
+  about 3 dB low. If the memory is short, the 16 bars stay (a warning is shown).
+  A bank of filters (like professional analysers) would fix the first two.
 - BPM: AUTO listens to music (spectral-flux onsets in ~20 bands, a pulse comb
   with the half/double tempo "family" chooses the beat, autocorrelation over
   2–4 beats refines it; first reading after ~3 s, then twice per second over up
@@ -178,4 +187,4 @@ The microphone and the speaker share the I2S bus, so the speaker is turned
 off before recording.
 
 ## License
-All rights reserved, see [LICENSE](LICENSE). Private project, not for distribution.
+MIT, see [LICENSE](LICENSE).

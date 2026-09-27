@@ -18,5 +18,11 @@ int getInt(const char *key, int defaultValue) {
   return prefs.isKey(key) ? prefs.getInt(key, defaultValue) : defaultValue;
 }
 void putInt(const char *key, int value) { prefs.putInt(key, value); }
+bool has(const char *key) { return prefs.isKey(key); }
+void remove(const char *key) { prefs.remove(key); }
+void getString(const char *key, char *out, size_t size, const char *defaultValue) {
+  if (!prefs.isKey(key) || prefs.getString(key, out, size) == 0) snprintf(out, size, "%s", defaultValue);
+}
+void putString(const char *key, const char *value) { prefs.putString(key, value); }
 
 }  // namespace settings
