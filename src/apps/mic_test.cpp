@@ -76,7 +76,7 @@ class MicTestApp : public App {
         {"g", "gain test: play a steady"},
         {"", "tone, see serial log"},
         {"d", "send 2 s of sound to PC"},
-        {"CLIP", "too loud: less gain"},
+        {nullptr, "CLIP: too loud, less gain"},
     };
     items = HELP;
     return sizeof(HELP) / sizeof(HELP[0]);

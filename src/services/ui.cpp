@@ -45,6 +45,12 @@ void helpPage(const char *title, const HelpItem *items, int count) {
   const int lineHeight = 15, keyWidth = 58;
   for (int i = 0; i < count; i++) {
     int y = HEADER_HEIGHT + 3 + i * lineHeight;
+    if (!items[i].keys) {                     // explanation, not a key
+      canvas.setTextColor(CYAN);
+      canvas.setCursor(4, y);
+      canvas.print(items[i].text);
+      continue;
+    }
     canvas.setTextColor(YELLOW);
     canvas.setCursor(4, y);
     canvas.print(items[i].keys);

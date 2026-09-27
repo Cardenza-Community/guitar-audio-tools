@@ -82,8 +82,8 @@ class SpectrumApp : public App {
         {"Enter", "peaks on / off"},
         {", /", "bar range 20 / 30 / 40 dB"},
         {"", "(smaller = livelier bars)"},
-        {"bars", "60 Hz (left) - 16 kHz"},
-        {"", "sensitivity is automatic"},
+        {nullptr, "bars: 60 Hz (left) - 16 kHz"},
+        {nullptr, "the sensitivity is automatic"},
     };
     items = HELP;
     return sizeof(HELP) / sizeof(HELP[0]);

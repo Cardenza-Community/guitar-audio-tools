@@ -29,9 +29,11 @@ StringMatch nearestGuitarString(float hz, float a4 = 440.0f);
 //    microphone and single readings scatter more,
 //  - a change of more than 30 cents (another string) jumps immediately,
 //  - while a note rings, a reading 2x, 3x or 4x lower (a sub-harmonic, e.g. the
-//    low E string resonating while the high E decays) counts as the same note;
-//    this also holds for about 1 s after the note faded out, so the echo of the
-//    low E at the very end does not show up as a new note,
+//    low E string resonating while the high E decays) or 2x, 3x or 4x higher (a
+//    harmonic: on an acoustic guitar the fundamental of the low strings fades
+//    first, so the low E can read as its 2nd harmonic, 165 Hz = "D +200", and
+//    the A as its 3rd, 330 Hz = high E) counts as the same note; this also
+//    holds for about 1 s after the note faded out,
 //  - a new pluck (level rising by 6 dB or more) starts over with the onset rule,
 //  - after `maxMisses` readings without pitch the result is 0 (silence).
 class PitchSmoother {

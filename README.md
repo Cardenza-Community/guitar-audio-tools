@@ -9,9 +9,13 @@ noise analysis, spectrum/spectrogram and an instrument tuner.
 3. **Polyphonic tuner** – strum all strings at once (like PolyTune)
 4. **Spectrum analyser** – green/yellow/red bars reacting to music
 5. **BPM detector** – from music or by tapping (tap tempo)
-6. **Metronome** – for musicians (replaces the vocal intonation trainer idea)
+6. **Metronome** – clicks with accents, tempo from BPM or tapping
 7. **Recorder** – WAV files on the SD card
-8. **Sound monitor** – night/snoring log, long-term level graph, sound alarm
+8. **Vocal trainer** – maybe later (deviation from the target note)
+
+The firmware is meant for musicians and guitarists. (A night/snoring monitor
+was dropped for that reason. Checking guitar intonation up the neck needs no
+extra app: the tuner in CHROMATIC mode shows any note and its deviation.)
 
 Design and development order: [ARCHITECTURE.md](ARCHITECTURE.md).
 Current state: skeleton (launcher, gapless audio input, app interface, PC tests)

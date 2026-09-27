@@ -14,6 +14,8 @@ const int FOOTER_Y = 126;        // bottom line with key help
 extern M5Canvas canvas;
 
 // One line of an app's help page: the key(s) and what they do.
+// keys == nullptr: an explanation line without a key (light blue, full width);
+// keys == "": the continuation of the line above.
 struct HelpItem {
   const char *keys;
   const char *text;

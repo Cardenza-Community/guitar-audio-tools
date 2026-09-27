@@ -86,9 +86,9 @@ class BpmApp : public App {
         {"", "3 s no tap: listen again"},
         {", /", "tempo /2  x2"},
         {"r", "start again"},
-        {"grey", "rhythm not clear"},
-        {"dot", "flashes on the beat"},
-        {"claps", "heard like drum hits"},
+        {nullptr, "orange tempo: rhythm unclear"},
+        {nullptr, "the dot flashes on the beat"},
+        {nullptr, "claps are heard like drums"},
     };
     items = HELP;
     return sizeof(HELP) / sizeof(HELP[0]);

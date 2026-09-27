@@ -9,12 +9,15 @@ const int GUITAR_MIDI[GUITAR_STRINGS] = {40, 45, 50, 55, 59, 64};
 
 static float centsBetween(float hz, float reference) { return 1200 * std::log2(hz / reference); }
 
-// If hz is 1/2, 1/3 or 1/4 of the reference note (within 25 cents), returns it
-// multiplied back up to the note; otherwise returns hz unchanged.
-static float undoSubHarmonic(float hz, float reference) {
+// If hz is 1/2, 1/3 or 1/4 of the reference note, or 2, 3 or 4 times it
+// (within 25 cents), returns the reference note's frequency range reading
+// (hz scaled back); otherwise returns hz unchanged.
+static float undoHarmonics(float hz, float reference) {
   if (hz <= 0 || reference <= 0) return hz;
-  for (int k = 2; k <= 4; k++)
-    if (std::fabs(centsBetween(hz * k, reference)) < 25) return hz * k;
+  for (int k = 2; k <= 4; k++) {
+    if (std::fabs(centsBetween(hz * k, reference)) < 25) return hz * k;   // sub-harmonic
+    if (std::fabs(centsBetween(hz / k, reference)) < 25) return hz / k;   // harmonic
+  }
   return hz;
 }
 
@@ -66,7 +69,7 @@ float PitchSmoother::push(float hz, float aperiodicity, float levelDb) {
     // shortly after a note faded out, its sub-harmonics still belong to it
     if (rememberLeft_ > 0) {
       rememberLeft_--;
-      hz = undoSubHarmonic(hz, rememberedHz_);
+      hz = undoHarmonics(hz, rememberedHz_);
     }
     // onset: collect agreeing, clearly periodic readings
     bool good = hz > 0 && aperiodicity < onsetMaxAperiodicity_;
@@ -93,8 +96,8 @@ float PitchSmoother::push(float hz, float aperiodicity, float levelDb) {
   }
   misses_ = 0;
 
-  // a sub-harmonic of the ringing note counts as the note itself
-  hz = undoSubHarmonic(hz, smoothed_);
+  // a sub-harmonic or harmonic of the ringing note counts as the note itself
+  hz = undoHarmonics(hz, smoothed_);
 
   history_[next_] = hz;
   next_ = (next_ + 1) % HISTORY;

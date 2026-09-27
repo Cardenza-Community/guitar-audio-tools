@@ -110,10 +110,10 @@ class PolyTuneApp : public App {
 
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
-        {"strum", "all 6 open strings"},
-        {"marker", "up: sharp, down: flat"},
-        {"arrow", "yellow 10-50 c, red >50 c"},
-        {"?", "string not heard"},
+        {nullptr, "strum all 6 open strings"},
+        {nullptr, "marker up: sharp, down: flat"},
+        {nullptr, "arrow: yellow 10-50 c, red >50"},
+        {nullptr, "?: string not heard"},
         {"; .", "microphone gain + / -"},
         {"Enter", "clear the result"},
         {"c", "calibrate to your guitar"},

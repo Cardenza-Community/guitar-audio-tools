@@ -90,7 +90,7 @@ to the app. No sound is lost between blocks (needed for BPM and recording).
 | 5 | PolyTune (all strings at once) | FFT + tuner knowledge; needs fine frequency resolution (E2–A2 are 28 Hz apart) |
 | 6 | BPM detector (listening and tap tempo) | FFT/onsets, gapless audio |
 | 7 | Recorder to SD card | SD + WAV |
-| 8 | Monitor: night/snoring log, long-term level graph, sound alarm | level + SD; time from NTP (no RTC chip) |
+| 8 | (dropped: night/snoring monitor – the firmware stays focused on musicians) | |
 
 ## Quality
 - Unit tests for all DSP code: `pio test -e native`.

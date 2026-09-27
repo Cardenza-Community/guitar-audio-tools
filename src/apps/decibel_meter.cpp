@@ -79,9 +79,9 @@ class DecibelMeterApp : public App {
         {"s", "Fast 1/8 s, Slow 1 s"},
         {"Enter", "reset Leq, Max, Min"},
         {"c", "calibrate to a phone app"},
-        {"Leq", "average since reset"},
-        {"Max/Min", "loudest / quietest"},
-        {"LOUD", "range for very loud"},
+        {nullptr, "Leq: average since reset"},
+        {nullptr, "Max / Min: loudest / quietest"},
+        {nullptr, "LOUD: range for very loud"},
     };
     items = HELP;
     return sizeof(HELP) / sizeof(HELP[0]);

@@ -392,6 +392,28 @@ void test_smoother_counts_notes_and_calms_low_e_more() {
   TEST_ASSERT_FLOAT_WITHIN(0.5f, 3.0f, cents);
 }
 
+void test_smoother_holds_note_over_harmonics() {
+  // acoustic guitar: the fundamental fades first, YIN may read a harmonic
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 5; i++) s.push(82.41f, 0.05f, -40);            // low E rings
+  float out = 0;
+  for (int i = 0; i < 4; i++) out = s.push(164.82f, 0.08f, -45);     // its 2nd harmonic
+  TEST_ASSERT_FLOAT_WITHIN(0.3f, 82.41f, out);                         // not "D +200"
+  dsp::PitchSmoother a;
+  for (int i = 0; i < 5; i++) a.push(110.0f, 0.05f, -40);            // A rings
+  for (int i = 0; i < 4; i++) out = a.push(330.0f, 0.08f, -45);      // its 3rd harmonic
+  TEST_ASSERT_FLOAT_WITHIN(0.3f, 110.0f, out);                         // not the high E
+}
+
+void test_smoother_new_pluck_of_higher_string_is_shown() {
+  dsp::PitchSmoother s;
+  for (int i = 0; i < 5; i++) s.push(82.41f, 0.05f, -50);
+  // the high E (4x the low E) is plucked: louder, a real new note
+  s.push(329.63f, 0.05f, -30);
+  s.push(329.63f, 0.05f, -30);
+  TEST_ASSERT_FLOAT_WITHIN(0.1f, 329.63f, s.push(329.63f, 0.05f, -31));
+}
+
 void test_tuner_real_decaying_high_e() {
   // replay a real recording the way the tuner does (a reading every 512 samples);
   // the note was locked on E4 before this excerpt
@@ -848,6 +870,8 @@ int main() {
   RUN_TEST(test_smoother_faded_note_keeps_its_echo);
   RUN_TEST(test_smoother_new_pluck_after_fade_is_new_note);
   RUN_TEST(test_smoother_counts_notes_and_calms_low_e_more);
+  RUN_TEST(test_smoother_holds_note_over_harmonics);
+  RUN_TEST(test_smoother_new_pluck_of_higher_string_is_shown);
   RUN_TEST(test_tuner_real_decaying_high_e);
   RUN_TEST(test_decimator_passes_guitar_range);
   RUN_TEST(test_decimator_blocks_what_would_fold_down);

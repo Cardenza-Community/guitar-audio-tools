@@ -58,6 +58,18 @@ static void iconSpectrum(M5Canvas &c, int x, int y) {
 }
 
 static void iconBpm(M5Canvas &c, int x, int y) {
+  // "BPM" above a row of beats
+  c.setTextSize(3);
+  c.setTextColor(WHITE);
+  c.setCursor(x - 26, y - 22);
+  c.print("BPM");
+  for (int i = 0; i < 5; i++) {
+    int bx = x - 28 + i * 14;
+    c.fillRect(bx, y + 16 - (i % 4 == 0 ? 12 : 6), 6, i % 4 == 0 ? 12 : 6, i % 4 == 0 ? ORANGE : CYAN);
+  }
+}
+
+static void iconMetronome(M5Canvas &c, int x, int y) {
   // metronome
   c.drawTriangle(x - 18, y + 26, x + 18, y + 26, x - 6, y - 26, WHITE);
   c.drawTriangle(x - 18, y + 26, x + 18, y + 26, x + 6, y - 26, WHITE);
@@ -81,18 +93,6 @@ static void iconRecorder(M5Canvas &c, int x, int y) {
   c.setTextColor(WHITE);
   c.setCursor(x - 8, y + 15);
   c.print("REC");
-}
-
-static void iconMonitor(M5Canvas &c, int x, int y) {
-  // moon with "zzz" above a small level graph
-  c.fillCircle(x - 10, y - 12, 14, YELLOW);
-  c.fillCircle(x - 3, y - 17, 13, BLACK);
-  c.setTextSize(1);
-  c.setTextColor(WHITE);
-  c.setCursor(x + 8, y - 24);
-  c.print("zZz");
-  const int levels[] = {3, 4, 3, 12, 5, 3, 4, 3, 9, 4, 3};
-  for (int i = 0; i < 11; i++) c.fillRect(x - 30 + i * 6, y + 26 - levels[i], 4, levels[i], CYAN);
 }
 
 static void iconMicTest(M5Canvas &c, int x, int y) {
@@ -120,9 +120,9 @@ static Entry entries[] = {
     {"PolyTune", "all strings at once", iconPolyTune, polyTuneApp()},
     {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
     {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
+    {"Metronome", "click, accents, tap", iconMetronome, nullptr},
     {"Vocal trainer", "sing the target note", iconVocal, nullptr},
     {"Recorder", "WAV on the SD card", iconRecorder, nullptr},
-    {"Sound monitor", "night log, alarm", iconMonitor, nullptr},
     {"Mic test", "diagnostics", iconMicTest, micTestApp()},
 };
 static const int COUNT = sizeof(entries) / sizeof(entries[0]);
@@ -169,8 +169,8 @@ static const ui::HelpItem HELP[] = {
     {"Enter", "open the app"},
     {"Esc", "back here from an app"},
     {"h", "help (in every app)"},
-    {"", "the last opened app is"},
-    {"", "shown after power-on"},
+    {nullptr, "the last opened app is shown"},
+    {nullptr, "after power-on"},
 };
 
 int help(const ui::HelpItem *&items) {

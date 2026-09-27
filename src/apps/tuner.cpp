@@ -83,9 +83,9 @@ class TunerApp : public App {
         {"Enter", "guitar / chromatic mode"},
         {", /", "reference A4 -1 / +1 Hz"},
         {"; .", "microphone gain + / -"},
-        {"green", "in tune: within 3 cents"},
-        {"guitar", "nearest string EADGBE"},
-        {"chrom.", "nearest of all 12 notes"},
+        {nullptr, "green: in tune (within 3 c)"},
+        {nullptr, "guitar: nearest string EADGBE"},
+        {nullptr, "chromatic: nearest of 12 notes"},
     };
     items = HELP;
     return sizeof(HELP) / sizeof(HELP[0]);
