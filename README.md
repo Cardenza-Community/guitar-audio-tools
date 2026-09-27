@@ -34,10 +34,12 @@ gain (shown for 1.5 s as "MIC GAIN 27 dB", remembered per app). All text is whit
 small display).
 
 - Launcher: `,` / `/` browse the apps, `Enter` opens one.
-- Decibel meter: `a` A/Z weighting, `s` Fast/Slow, `Enter` (or `r`) reset Leq/Max/Min,
+- Decibel meter: `a` A/Z weighting, `Enter` (or `r`) reset Leq/Max/Min,
   `c` calibration (`;`/`.` ±0.5 dB, `,`/`/` ±5 dB, `Enter` saves, `c` cancels).
   Samples at 32 kHz; A-weighting follows IEC 61672 within 0.25 dB up to 8 kHz.
   Automatic range: codec gain 18 dB, switches to 0 dB for very loud sound.
+  Time weighting Fast (1/8 s); the big number is rewritten twice per second
+  like on real meters, the bar moves smoothly.
 - Guitar tuner: `Enter` (or `m`) GUITAR / CHROMATIC mode, `,`/`/` reference pitch A4 −1/+1 Hz
   (430–450), `;`/`.` microphone gain. Needle ±50 cents, green centre ±3 cents.
   GUITAR mode always shows the nearest string of the standard tuning, even when

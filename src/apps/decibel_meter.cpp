@@ -1,13 +1,18 @@
-// Decibel meter: sound level in dB SPL, A or Z weighted, Fast or Slow,
+// Decibel meter: sound level in dB SPL, A or Z weighted, Fast (1/8 s),
 // with Leq (average energy), Max, Min and a rating of the noise.
 //
-// Keys: a  A/Z weighting     s  Fast/Slow      Enter/r  reset Leq/Max/Min
+// Keys: a  A/Z weighting     Enter/r  reset Leq/Max/Min
+// (No Slow mode any more: with the number held for 0.5 s it was not needed.)
 //       c  calibration: ; . +-0.5 dB, , / +-5 dB, Enter saves, c cancels
 //
 // Range: normally the codec gain is 18 dB (quiet rooms up to about 100 dB).
 // When the signal gets close to clipping it switches to 0 dB (up to about
 // 120 dB) and back when it is quiet again. The meter gets the samples scaled
 // back to the normal range, so Leq/Max/Min continue across a switch.
+//
+// Like real sound level meters, the big number is rewritten only twice per
+// second (at 30 frames per second its tenths changed too fast to read); the
+// bar moves smoothly.
 #include <memory>
 #include "apps.h"
 #include "sound_level.h"
@@ -55,7 +60,6 @@ class DecibelMeterApp : public App {
     calibrated_ = settings::getInt("db_calok", 0);
     loudRange_ = false;
     calibrating_ = false;
-    slowMode_ = false;
     quietSinceMs_ = 0;
     overload_ = false;
     barPeak_ = 0;
@@ -76,7 +80,6 @@ class DecibelMeterApp : public App {
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
         {"a", "A: like the ear, Z: flat"},
-        {"s", "Fast 1/8 s, Slow 1 s"},
         {"Enter", "reset Leq, Max, Min"},
         {"c", "calibrate to a phone app"},
         {nullptr, "Leq: average since reset"},
@@ -107,7 +110,6 @@ class DecibelMeterApp : public App {
     if (key.ch == 'a')
       meter_->setWeighting(meter_->weighting() == dsp::Weighting::A ? dsp::Weighting::Z
                                                                     : dsp::Weighting::A);
-    if (key.ch == 's') slowMode_ = !slowMode_;
     if (key.ch == 'r' || key.enter) meter_->reset();
     if (key.ch == 'c') {
       calibrating_ = true;
@@ -117,11 +119,18 @@ class DecibelMeterApp : public App {
 
   void draw(M5Canvas &c) override {
     float cal = calibrating_ ? calEdit_ : calibration_;
-    float level = (slowMode_ ? meter_->slowDb() : meter_->fastDb()) + cal;
+    float level = meter_->fastDb() + cal;
+    // the number: held for NUMBER_HOLD_MS (the calibration offset is added
+    // afterwards, so changing it shows at once)
+    if (millis() - heldMs_ >= NUMBER_HOLD_MS) {
+      heldDb_ = level - cal;
+      heldMs_ = millis();
+    }
+    float shown = heldDb_ + cal;
     bool aWeighted = meter_->weighting() == dsp::Weighting::A;
 
     char right[24];
-    snprintf(right, sizeof(right), "%s %s%s", aWeighted ? "A" : "Z", slowMode_ ? "SLOW" : "FAST",
+    snprintf(right, sizeof(right), "%s FAST%s", aWeighted ? "A" : "Z",
              loudRange_ ? " LOUD" : "");
     ui::header(calibrating_ ? "CALIBRATION" : "Decibel meter", right);
 
@@ -129,7 +138,7 @@ class DecibelMeterApp : public App {
     c.setTextColor(overload_ ? RED : WHITE);
     c.setTextSize(5);
     c.setCursor(2, 18);
-    c.printf("%5.1f", max(level, 0.0f));
+    c.printf("%5.1f", max(shown, 0.0f));
     c.setTextSize(2);
     c.setCursor(152, 18);
     c.print(aWeighted ? "dBA" : "dBZ");
@@ -165,7 +174,7 @@ class DecibelMeterApp : public App {
 
     // rating of the noise (based on the A-weighted level)
     const Rating *r = &RATINGS[0];
-    while (level >= r->below) r++;
+    while (shown >= r->below) r++;
     c.setTextSize(2);
     c.setTextColor(r->color);
     c.setCursor(2, 105);
@@ -245,8 +254,11 @@ class DecibelMeterApp : public App {
   std::unique_ptr<dsp::SoundLevelMeter> meter_;
   float calibration_ = DEFAULT_CALIBRATION, calEdit_ = 0;
   bool calibrated_ = false, calibrating_ = false;
-  bool slowMode_ = false, loudRange_ = false, overload_ = false;
+  bool loudRange_ = false, overload_ = false;
   uint32_t quietSinceMs_ = 0, lastLogMs_ = 0, barPeakMs_ = 0;
+  static const uint32_t NUMBER_HOLD_MS = 500;
+  float heldDb_ = 0;
+  uint32_t heldMs_ = 0;
   float barPeak_ = 0;
 };
 
