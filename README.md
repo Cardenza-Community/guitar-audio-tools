@@ -4,6 +4,21 @@ Audio tools for guitarists and musicians on the M5Stack Cardputer ADV
 (ESP32-S3): a precise tuner, a strum tuner for all six strings at once, BPM
 detector, spectrum analyser, sound level meter and more.
 
+**For the Cardputer ADV only** (ES8311 audio codec): on the original Cardputer
+the microphone stays silent. Install it from **M5Burner** (search "Guitar Audio
+Tools") or from the firmware list of the Launcher, or build it yourself (below).
+
+| | |
+|---|---|
+| ![Launcher](docs/images/launcher.png) | ![Guitar tuner](docs/images/tuner.png) |
+| Launcher: `,` `/` browse, `Enter` open | Guitar tuner: E4, 3 cents flat |
+| ![Strum tuner](docs/images/strum_tuner.png) | ![Metronome](docs/images/metronome.png) |
+| Strum tuner: all six strings from one strum | Metronome: 4/4, the frame flashes on the beat |
+| ![Chords](docs/images/chords.png) | ![Scales](docs/images/scales.png) |
+| Chords: type `am7`, see the shape | Scales: A minor pentatonic on the neck |
+| ![Spectrum](docs/images/spectrum.png) | ![Decibel meter](docs/images/decibel_meter.png) |
+| Spectrum: 26 third-octave bands | Decibel meter: dBA, Leq, Max, Min |
+
 ## Apps
 Version **1.0.0-beta.2** (shown on the launcher's help page `h` and printed on
 the serial console at start). In the order of the launcher:
