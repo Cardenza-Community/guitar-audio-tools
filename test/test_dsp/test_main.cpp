@@ -22,6 +22,7 @@
 #include "onset.h"
 #include "tempo.h"
 #include "songs.h"
+#include "intonation.h"
 #include <complex>
 #include "weighting.h"
 
@@ -825,6 +826,53 @@ void test_tap_tempo() {
   TEST_ASSERT_EQUAL(1, t.taps());
 }
 
+// ---------- intonation ----------
+
+// readings every 32 ms: quiet, a pluck at 1 s whose pitch starts `glide` cents
+// sharp and settles to `hz`
+static dsp::NoteMeter::State meterNote(dsp::NoteMeter &m, float hz, float glide, float ringS) {
+  dsp::NoteMeter::State st = m.state();
+  for (float t = 0; t < 4; t += 0.032f) {
+    bool ringing = t >= 1 && t < 1 + ringS;
+    float level = ringing ? -30 : -65;
+    float cents = glide * std::exp(-(t - 1) / 0.3f);
+    float reading = ringing ? hz * std::pow(2.0f, cents / 1200) : 0;
+    st = m.push(t, reading, level);
+    if (st == dsp::NoteMeter::State::Done || st == dsp::NoteMeter::State::Failed) break;
+  }
+  return st;
+}
+
+void test_note_meter_ignores_the_sharp_start() {
+  dsp::NoteMeter m;
+  TEST_ASSERT_TRUE(meterNote(m, 82.41f, 30, 3) == dsp::NoteMeter::State::Done);
+  // 30 cents sharp at the pluck (time constant 0.3 s): in the middle of the
+  // 0.4-1.6 s window it is still 1.07 cents sharp; both notes of an
+  // intonation check are measured in the same window, so this cancels out
+  TEST_ASSERT_FLOAT_WITHIN(1.5f, 0.0f, 1200 * std::log2(m.result() / 82.41f));
+}
+
+void test_note_meter_too_short_fails() {
+  dsp::NoteMeter m;
+  TEST_ASSERT_TRUE(meterNote(m, 110, 0, 0.5f) == dsp::NoteMeter::State::Failed);
+}
+
+void test_intonation_reference_open_or_harmonic() {
+  dsp::IntonationReference r = dsp::classifyReference(110.3f);      // open A
+  TEST_ASSERT_EQUAL(1, r.string);
+  TEST_ASSERT_FALSE(r.harmonic);
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 220.6f, r.octaveHz);
+  r = dsp::classifyReference(164.8f);                                 // low E harmonic
+  TEST_ASSERT_EQUAL(0, r.string);
+  TEST_ASSERT_TRUE(r.harmonic);
+  TEST_ASSERT_EQUAL(-1, dsp::classifyReference(123.0f).string);      // no string
+}
+
+void test_intonation_cents() {
+  // fretted 12th 5 cents sharp of the octave: move the saddle back
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 5.0f, dsp::intonationCents(220 * std::pow(2.0f, 5 / 1200.0f), 220));
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -901,5 +949,9 @@ int main() {
   RUN_TEST(test_tempo_near_silence_stays_in_range);
   RUN_TEST(test_onsets_find_claps);
   RUN_TEST(test_tap_tempo);
+  RUN_TEST(test_note_meter_ignores_the_sharp_start);
+  RUN_TEST(test_note_meter_too_short_fails);
+  RUN_TEST(test_intonation_reference_open_or_harmonic);
+  RUN_TEST(test_intonation_cents);
   return UNITY_END();
 }

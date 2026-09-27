@@ -77,6 +77,19 @@ static void iconMetronome(M5Canvas &c, int x, int y) {
   c.fillCircle(x + 11, y - 8, 4, ORANGE);
 }
 
+static void iconIntonation(M5Canvas &c, int x, int y) {
+  // a guitar neck with frets and the double dot of the 12th fret
+  c.fillRect(x - 32, y - 12, 64, 24, 0x7A00);                    // brown fretboard
+  for (int f = 0; f < 6; f++) c.drawFastVLine(x - 30 + f * 12, y - 12, 24, LIGHTGREY);
+  for (int s = 0; s < 4; s++) c.drawFastHLine(x - 32, y - 9 + s * 6, 64, WHITE);
+  c.fillCircle(x + 12, y - 6, 3, WHITE);
+  c.fillCircle(x + 12, y + 6, 3, WHITE);
+  c.setTextSize(1);
+  c.setTextColor(YELLOW);
+  c.setCursor(x + 6, y + 18);
+  c.print("12");
+}
+
 static void iconVocal(M5Canvas &c, int x, int y) {
   // microphone
   c.fillRoundRect(x - 9, y - 28, 18, 32, 9, WHITE);
@@ -121,6 +134,7 @@ static Entry entries[] = {
     {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
     {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
     {"Metronome", "click, accents, tap", iconMetronome, metronomeApp()},
+    {"Intonation", "guitar setup, fret 12", iconIntonation, intonationApp()},
     {"Vocal trainer", "sing the target note", iconVocal, nullptr},
     {"Recorder", "WAV on the SD card", iconRecorder, nullptr},
     {"Mic test", "diagnostics", iconMicTest, micTestApp()},
