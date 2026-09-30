@@ -84,6 +84,8 @@ class MetronomeApp : public App {
 
   void process(const int16_t *, size_t) override {}
 
+  bool keepsAwake() const override { return running_; }   // practising: no power-off
+
   // the M5StickS3 action menu (double click on A)
   int actions(const Action *&items) const override {
     static const Action ACTIONS[] = {

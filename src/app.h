@@ -53,6 +53,10 @@ class App {
   // Esc ("`") are passed to the app too instead of opening help / going back.
   virtual bool capturesKeys() const { return false; }
 
+  // true while the app is in use without key presses (a running metronome):
+  // the StickS3 does not power off for inactivity then.
+  virtual bool keepsAwake() const { return false; }
+
   // Actions offered in the M5StickS3 menu (double click on A): everything the
   // two buttons do not reach directly. Returns the number of actions.
   virtual int actions(const Action *&items) const {

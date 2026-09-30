@@ -4,8 +4,9 @@ Audio tools for guitarists and musicians on the M5Stack Cardputer ADV
 (ESP32-S3): a precise tuner, a strum tuner for all six strings at once, BPM
 detector, spectrum analyser, sound level meter and more.
 
-**For the Cardputer ADV only** (ES8311 audio codec): on the original Cardputer
-the microphone stays silent. Install it from **M5Burner** (search "Guitar Audio
+**Supported devices: M5Stack Cardputer ADV and M5StickS3** (both have the
+ES8311 audio codec; on the original Cardputer the microphone stays silent).
+One source code, two builds: `pio run -e cardputer` and `pio run -e sticks3`. Install it from **M5Burner** (search "Guitar Audio
 Tools") or from the firmware list of the Launcher, or build it yourself (below).
 
 | | |
@@ -33,11 +34,15 @@ microphone, ESP32-S3, 8 MB PSRAM, a 240 x 135 display in landscape):
   stereo played clicks twice now and then and up to 30 ms late) and the
   clicks ring longer (a smaller speaker);
 - the microphone differs from the Cardputer's: recalibrate the Strum tuner
-  and the decibel meter.
+  and the decibel meter;
+- automatic power-off after 5 minutes without a button press (a warning with
+  a 10 s countdown first, any button cancels it; not while the metronome
+  runs); power on with a short press of the left button, off with a double
+  press.
 Everything that differs is in `src/hw/board.*`.
 
 ## Apps
-Version **1.0.0-beta.2** (shown on the launcher's help page `h` and printed on
+Version **1.1.0-beta.1** (shown on the launcher's help page `h` and printed on
 the serial console at start). In the order of the launcher:
 
 1. **Guitar tuner** – needle gauge ±50 cents, note name

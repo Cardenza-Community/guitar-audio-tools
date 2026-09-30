@@ -63,6 +63,8 @@ bool hasKeyboard() { return false; }
 bool hasSdCard() { return false; }
 uint8_t speakerVolume(int volume) { return constrain(volume, 0, 10) * 25; }   // 10 -> 250 (see board.h)
 bool loudClicks() { return true; }
+uint32_t autoPowerOffMs() { return 5 * 60 * 1000; }
+void powerOff() { M5.Power.powerOff(); }
 
 void prepareSpeaker(uint32_t sampleRate) {
   auto cfg = M5.Speaker.config();
@@ -135,6 +137,8 @@ bool hasSdCard() { return true; }
 uint8_t speakerVolume(int volume) { return constrain(volume, 0, 10) * 25; }
 void prepareSpeaker(uint32_t) {}
 bool loudClicks() { return false; }
+uint32_t autoPowerOffMs() { return 0; }
+void powerOff() {}
 const char *footerText() { return "h: help   Esc: back"; }
 const char *launcherFooterText() { return ", / browse   Enter open   h help"; }
 

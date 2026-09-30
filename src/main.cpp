@@ -73,10 +73,48 @@ void menuInput(const board::Input &input) {
   }
 }
 
+// Automatic power-off (StickS3): after board::autoPowerOffMs() without a key
+// press; a warning is shown for the last WARN_MS, any key cancels it.
+const uint32_t WARN_MS = 10000;
+uint32_t lastActivityMs = 0;
+
+void checkPowerOff() {
+  uint32_t limit = board::autoPowerOffMs();
+  if (limit == 0) return;
+  if (current && current->keepsAwake()) lastActivityMs = millis();
+  if (millis() - lastActivityMs < limit) return;
+  Serial.println("power off (inactivity)");
+  if (current) closeApp();                           // saves the app's settings
+  board::powerOff();
+}
+
+void drawPowerOffWarning() {
+  uint32_t limit = board::autoPowerOffMs();
+  uint32_t idle = millis() - lastActivityMs;
+  if (limit == 0 || idle + WARN_MS < limit) return;
+  auto &c = ui::canvas;
+  c.fillRect(10, 40, ui::WIDTH - 20, 50, NAVY);
+  c.drawRect(10, 40, ui::WIDTH - 20, 50, YELLOW);
+  c.setTextSize(2);
+  c.setTextColor(YELLOW);
+  char text[24];
+  snprintf(text, sizeof(text), "Power off in %u s", (unsigned)((limit - idle + 999) / 1000));
+  c.setCursor((ui::WIDTH - c.textWidth(text)) / 2, 48);
+  c.print(text);
+  c.setTextSize(1);
+  c.setTextColor(WHITE);
+  c.setCursor((ui::WIDTH - c.textWidth("press a button to stay on")) / 2, 72);
+  c.print("press a button to stay on");
+}
+
 void handleInput() {
   board::update(current && current->capturesKeys());
   board::Input input;
   while (board::nextInput(input)) {
+    uint32_t idle = millis() - lastActivityMs;
+    lastActivityMs = millis();
+    if (board::autoPowerOffMs() && idle + WARN_MS >= board::autoPowerOffMs())
+      continue;                                     // the key only cancelled the power-off
     if (showingHelp) {                              // any key closes the help page
       showingHelp = false;
       continue;
@@ -150,6 +188,7 @@ void setup() {
 
 void loop() {
   handleInput();
+  checkPowerOff();
 
   if (current) current->tick();
 
@@ -175,6 +214,7 @@ void loop() {
     } else {
       launcher::draw();
     }
+    drawPowerOffWarning();
     ui::push();
   }
   delay(1);

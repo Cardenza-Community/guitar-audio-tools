@@ -49,6 +49,11 @@ void prepareSpeaker(uint32_t sampleRate);
 // (more loudness at the same peak current) and all beats are louder.
 bool loudClicks();
 
+// Power off after this long without a key press (0 = never): the StickS3
+// runs on a 250 mAh battery; the Cardputer has no automatic power-off.
+uint32_t autoPowerOffMs();
+void powerOff();
+
 // the bottom line of the apps and of the launcher
 const char *footerText();
 const char *launcherFooterText();
