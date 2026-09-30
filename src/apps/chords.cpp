@@ -8,11 +8,14 @@
 // name - needed only when a letter could continue it: C, then A ("ca" can be
 // the start of "cadd9"), or A, then B ("ab" is A flat).
 // Keys: , / other shape of the chord, Del deletes the last letter.
+// M5StickS3 (no keyboard): A = next root, B = next shape (hold: previous),
+// the menu (double click on A) changes the root and the chord type.
 // No timing rule: looking for shift + 3 (#) easily takes a few seconds.
 // The microphone is not used.
 #include <cstring>
 #include "apps.h"
 #include "theory.h"
+#include "../hw/board.h"
 #include "tuning.h"
 #include "../services/settings.h"
 #include "../services/ui.h"
@@ -31,6 +34,11 @@ const int STRING_GAP = 13;
 const char *STRING_LABELS = "EADGBe";
 
 bool isNoteLetter(char ch) { return ch >= 'a' && ch <= 'g'; }
+
+// Stick menu commands (Key::command)
+enum Command { NEXT_ROOT = 1, PREVIOUS_ROOT, NEXT_TYPE, PREVIOUS_TYPE };
+// the 12 roots in their usual spelling, by pitch class (C = 0)
+const char *const ROOTS[] = {"c", "c#", "d", "eb", "e", "f", "f#", "g", "ab", "a", "bb", "b"};
 
 class ChordsApp : public App {
  public:
@@ -52,6 +60,18 @@ class ChordsApp : public App {
 
   void process(const int16_t *, size_t) override {}
 
+  // the M5StickS3 action menu (double click on A)
+  int actions(const Action *&items) const override {
+    static const Action ACTIONS[] = {
+        {"Next root", {0, false, false, NEXT_ROOT}},
+        {"Previous root", {0, false, false, PREVIOUS_ROOT}},
+        {"Next type", {0, false, false, NEXT_TYPE}},
+        {"Previous type", {0, false, false, PREVIOUS_TYPE}},
+    };
+    items = ACTIONS;
+    return sizeof(ACTIONS) / sizeof(ACTIONS[0]);
+  }
+
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
         {nullptr, "type a chord: am7  f#m  bb  c9"},
@@ -67,6 +87,19 @@ class ChordsApp : public App {
   }
 
   void onKey(const Key &key) override {
+    int command = key.command;
+    if (!board::hasKeyboard() && key.enter) command = NEXT_ROOT;   // StickS3: A
+    if (command) {
+      int root = chord_.root.pitch, chordType = valid_ ? chord_.type : 0;
+      int types = dsp::CHORD_TYPE_COUNT;
+      if (command == NEXT_ROOT) root = (root + 1) % 12;
+      if (command == PREVIOUS_ROOT) root = (root + 11) % 12;
+      if (command == NEXT_TYPE) chordType = (chordType + 1) % types;
+      if (command == PREVIOUS_TYPE) chordType = (chordType + types - 1) % types;
+      snprintf(text_, sizeof(text_), "%s%s", ROOTS[root], dsp::CHORD_TYPES[chordType].suffix);
+      update();
+      return;
+    }
     if (key.enter) {
       text_[0] = 0;
       update();

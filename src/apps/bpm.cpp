@@ -82,6 +82,15 @@ class BpmApp : public App {
     }
   }
 
+  // the M5StickS3 action menu (double click on A)
+  int actions(const Action *&items) const override {
+    static const Action ACTIONS[] = {
+        {"Listen again", {'r'}},
+    };
+    items = ACTIONS;
+    return sizeof(ACTIONS) / sizeof(ACTIONS[0]);
+  }
+
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
         {"Enter", "tap the beat (or space);"},

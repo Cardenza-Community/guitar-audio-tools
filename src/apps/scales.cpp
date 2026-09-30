@@ -5,9 +5,12 @@
 //
 // Keys: a...g the key (# or b right after the letter: sharp / flat; b alone is
 // the note B), , / the scale, ; . frets 0-12 / 12-24. No microphone.
+// M5StickS3 (no keyboard): A = next key, B = next scale (hold: previous),
+// the menu (double click on A) has the previous key and the fret range.
 #include <cstring>
 #include "apps.h"
 #include "theory.h"
+#include "../hw/board.h"
 #include "tuning.h"
 #include "../services/settings.h"
 #include "../services/ui.h"
@@ -24,6 +27,12 @@ const char *STRING_LABELS = "EADGBe";
 const int MARKED_FRETS[] = {3, 5, 7, 9, 12, 15, 17, 19, 21, 24};
 const char *LETTERS = "cdefgab";
 const int LETTER_PITCH[] = {0, 2, 4, 5, 7, 9, 11};
+
+// Stick menu commands (Key::command)
+enum Command { NEXT_ROOT = 1, PREVIOUS_ROOT };
+// the 12 keys in their usual spelling, by pitch class: letter (0 = C) and pitch
+const dsp::SpelledNote KEYS[] = {{0, 0}, {0, 1}, {1, 2}, {2, 3}, {2, 4}, {3, 5},
+                                 {3, 6}, {4, 7}, {5, 8}, {5, 9}, {6, 10}, {6, 11}};
 
 class ScalesApp : public App {
  public:
@@ -46,6 +55,18 @@ class ScalesApp : public App {
 
   void process(const int16_t *, size_t) override {}
 
+  // the M5StickS3 action menu (double click on A)
+  int actions(const Action *&items) const override {
+    static const Action ACTIONS[] = {
+        {"Next key", {0, false, false, NEXT_ROOT}},
+        {"Previous key", {0, false, false, PREVIOUS_ROOT}},
+        {"Frets 0-12", {';'}},
+        {"Frets 12-24", {'.'}},
+    };
+    items = ACTIONS;
+    return sizeof(ACTIONS) / sizeof(ACTIONS[0]);
+  }
+
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
         {"a...g", "the key (then # or b)"},
@@ -59,6 +80,14 @@ class ScalesApp : public App {
   }
 
   void onKey(const Key &key) override {
+    int command = key.command;
+    if (!board::hasKeyboard() && key.enter) command = NEXT_ROOT;   // StickS3: A
+    if (command) {
+      int pitch = (root_.pitch + (command == NEXT_ROOT ? 1 : 11)) % 12;
+      root_ = KEYS[pitch];
+      update();
+      return;
+    }
     char ch = key.ch;
     if ((ch == '#' || ch == 'b') && accidentalAllowed_) {
       root_.pitch = (root_.pitch + (ch == '#' ? 1 : 11)) % 12;

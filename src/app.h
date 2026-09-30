@@ -2,15 +2,25 @@
 // main.cpp shows the menu, starts the selected app and feeds it with audio,
 // key presses and drawing requests. See ARCHITECTURE.md.
 #pragma once
-#include <M5Cardputer.h>
+#include <M5Unified.h>
 #include "services/ui.h"
 
 // One key press. Handled by main, not passed to apps: Esc (top left, "`")
 // goes back to the launcher, h shows the app's help page.
+// On the M5StickS3 (two buttons) the buttons are turned into the same keys
+// (see hw/board.h); `command` carries app-specific actions chosen in the
+// Stick's action menu (e.g. "next root" in Chords).
 struct Key {
   char ch = 0;          // printable character, 0 if none
   bool enter = false;
   bool del = false;     // backspace
+  int command = 0;      // app-specific action from the Stick menu, 0 = none
+};
+
+// One entry of the Stick's action menu: a label and the key it sends.
+struct Action {
+  const char *label;
+  Key key;
 };
 
 class App {
@@ -42,6 +52,13 @@ class App {
   // true while the app wants every key, e.g. for typing a name: then h and
   // Esc ("`") are passed to the app too instead of opening help / going back.
   virtual bool capturesKeys() const { return false; }
+
+  // Actions offered in the M5StickS3 menu (double click on A): everything the
+  // two buttons do not reach directly. Returns the number of actions.
+  virtual int actions(const Action *&items) const {
+    items = nullptr;
+    return 0;
+  }
 
   // Help page shown on the h key: returns the number of lines.
   virtual int help(const ui::HelpItem *&items) const {

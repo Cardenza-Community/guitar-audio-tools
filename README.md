@@ -19,6 +19,23 @@ Tools") or from the firmware list of the Launcher, or build it yourself (below).
 | ![Spectrum](docs/images/spectrum.png) | ![Decibel meter](docs/images/decibel_meter.png) |
 | Spectrum: 26 third-octave bands | Decibel meter: dBA, Leq, Max, Min |
 
+## M5StickS3
+The same firmware also runs on the **M5StickS3** (same ES8311 codec and
+microphone, ESP32-S3, 8 MB PSRAM, a 240 x 135 display in landscape):
+`pio run -e sticks3 -t upload`. Differences:
+- two buttons instead of the keyboard: **A** (front) click = main action,
+  double click = action menu (the other functions of the app + Help),
+  hold = back to the apps; **B** (right side) click = next, hold = previous;
+- no Recorder (no SD card);
+- Chords: A = next root, B = next shape, the menu changes the root and the
+  chord type; Scales: A = next key, B = next scale;
+- the speaker is set to the metronome's 44.1 kHz mono (the default 22050 Hz
+  stereo played clicks twice now and then and up to 30 ms late) and the
+  clicks ring longer (a smaller speaker);
+- the microphone differs from the Cardputer's: recalibrate the Strum tuner
+  and the decibel meter.
+Everything that differs is in `src/hw/board.*`.
+
 ## Apps
 Version **1.0.0-beta.2** (shown on the launcher's help page `h` and printed on
 the serial console at start). In the order of the launcher:

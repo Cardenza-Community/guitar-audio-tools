@@ -108,6 +108,17 @@ class StrumTunerApp : public App {
     }
   }
 
+  // the M5StickS3 action menu (double click on A)
+  int actions(const Action *&items) const override {
+    static const Action ACTIONS[] = {
+        {"Calibrate / cancel", {'c'}},
+        {"Mic gain +", {';'}},
+        {"Mic gain -", {'.'}},
+    };
+    items = ACTIONS;
+    return sizeof(ACTIONS) / sizeof(ACTIONS[0]);
+  }
+
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
         {nullptr, "strum all 6 open strings"},

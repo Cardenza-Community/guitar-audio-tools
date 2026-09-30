@@ -70,6 +70,18 @@ class MicTestApp : public App {
     }
   }
 
+  // the M5StickS3 action menu (double click on A)
+  int actions(const Action *&items) const override {
+    static const Action ACTIONS[] = {
+        {"Mic gain +", {';'}},
+        {"Mic gain -", {'.'}},
+        {"Gain test", {'g'}},
+        {"Sample dump (serial)", {'d'}},
+    };
+    items = ACTIONS;
+    return sizeof(ACTIONS) / sizeof(ACTIONS[0]);
+  }
+
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
         {"; .", "gain + / - (3 dB steps)"},

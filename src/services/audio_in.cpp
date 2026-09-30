@@ -1,5 +1,5 @@
 #include "audio_in.h"
-#include <M5Cardputer.h>
+#include <M5Unified.h>
 #include <freertos/stream_buffer.h>
 #include <atomic>
 #include <esp_timer.h>
@@ -41,7 +41,7 @@ static void onBufferFilled(void *, void *data, size_t length) {
   size_t bytes = length * sizeof(int16_t);
   size_t sent = xStreamBufferSend(stream, data, bytes, 0);
   if (sent < bytes) dropped += (bytes - sent) / sizeof(int16_t);
-  M5Cardputer.Mic.record((int16_t *)data, length);   // queue it again
+  M5.Mic.record((int16_t *)data, length);   // queue it again
 }
 
 bool start(uint32_t sampleRate, int gainDb) {
@@ -51,18 +51,18 @@ bool start(uint32_t sampleRate, int gainDb) {
   xStreamBufferReset(stream);
   dropped = 0;
 
-  M5Cardputer.Speaker.end();
+  M5.Speaker.end();
 
   // Unscaled samples: the library multiplies by magnification / (over_sampling * 2) = 1.
-  auto cfg = M5Cardputer.Mic.config();
+  auto cfg = M5.Mic.config();
   cfg.sample_rate = sampleRate;
   cfg.over_sampling = 2;
   cfg.magnification = 4;
   cfg.noise_filter_level = 0;
-  M5Cardputer.Mic.config(cfg);
+  M5.Mic.config(cfg);
   // The callback may only be changed while the Mic is stopped.
-  M5Cardputer.Mic.setBufferReleaseCallback(nullptr, onBufferFilled);
-  if (!M5Cardputer.Mic.begin()) return false;
+  M5.Mic.setBufferReleaseCallback(nullptr, onBufferFilled);
+  if (!M5.Mic.begin()) return false;
 
   es8311::setPgaGain(gainDb);             // Mic.begin() reset the codec gain to 0 dB
 
@@ -71,13 +71,13 @@ bool start(uint32_t sampleRate, int gainDb) {
   filledSamples = firstCount = lastCount = 0;
   firstUs = lastUs = 0;
   portEXIT_CRITICAL(&timingLock);
-  isRunning = M5Cardputer.Mic.record(chunks[0], CHUNK, sampleRate) &&
-              M5Cardputer.Mic.record(chunks[1], CHUNK, sampleRate);
+  isRunning = M5.Mic.record(chunks[0], CHUNK, sampleRate) &&
+              M5.Mic.record(chunks[1], CHUNK, sampleRate);
   return isRunning;
 }
 
 void stop() {
-  if (M5Cardputer.Mic.isRunning()) M5Cardputer.Mic.end();
+  if (M5.Mic.isRunning()) M5.Mic.end();
   isRunning = false;
 }
 

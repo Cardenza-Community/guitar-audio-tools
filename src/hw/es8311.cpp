@@ -1,5 +1,5 @@
 #include "es8311.h"
-#include <M5Cardputer.h>
+#include <M5Unified.h>
 
 namespace es8311 {
 
@@ -49,7 +49,7 @@ struct MicCallbackAccess : m5::Mic_Class {
   }
 };
 
-void installQuietMicCallback() { MicCallbackAccess::set(M5Cardputer.Mic, micCallback); }
+void installQuietMicCallback() { MicCallbackAccess::set(M5.Mic, micCallback); }
 
 uint8_t readRegister(uint8_t reg) {
   return M5.In_I2C.readRegister8(ADDRESS, reg, I2C_FREQ);

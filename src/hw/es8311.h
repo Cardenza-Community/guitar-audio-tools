@@ -8,7 +8,7 @@
 //   mic -> PGA (analog gain 0..30 dB) -> ADC -> high-pass filter (removes DC)
 //       -> digital volume -> I2S -> ESP32
 //
-// M5Cardputer.Mic.begin() powers the codec up with the PGA at its minimum
+// M5.Mic.begin() powers the codec up with the PGA at its minimum
 // (0 dB); audio_in calls setPgaGain() again after every Mic.begin().
 // Register numbers and meanings come from the ES8311 User Guide Rev 1.11.
 #pragma once
@@ -24,7 +24,7 @@ int pgaGain();
 
 // Powers the DAC (speaker path) down. M5Unified 0.2.23 switches it on for the
 // speaker but does nothing when the speaker is ended, so on the Cardputer ADV
-// the idle amplifier then hums. Call after M5Cardputer.Speaker.end().
+// the idle amplifier then hums. Call after M5.Speaker.end().
 void speakerOff();
 
 // Replaces M5Unified's microphone on/off callback. Switching the microphone on
@@ -32,7 +32,7 @@ void speakerOff();
 // M5Unified powers the whole codec down there, and that step pops audibly in
 // the speaker every time an app with the microphone is closed. The codec stays
 // powered (its DAC stays off), which costs only a few milliwatts.
-// Call once after M5Cardputer.begin().
+// Call once after board::begin().
 void installQuietMicCallback();
 
 uint8_t readRegister(uint8_t reg);

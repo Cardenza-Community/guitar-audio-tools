@@ -1,11 +1,12 @@
 #include "ui.h"
+#include "../hw/board.h"
 
 namespace ui {
 
 M5Canvas canvas;
 
 void begin() {
-  M5Cardputer.Display.setRotation(1);     // landscape
+  M5.Display.setRotation(1);     // landscape
   canvas.createSprite(WIDTH, HEIGHT);
 }
 
@@ -47,7 +48,31 @@ void footerHelp() {
   canvas.setTextSize(1);
   canvas.setTextColor(YELLOW);
   canvas.setCursor(3, FOOTER_Y);
-  canvas.print("h: help   Esc: back");
+  canvas.print(board::footerText());
+}
+
+void menuPage(const char *title, const char *const *labels, int count, int selected) {
+  canvas.fillSprite(BLACK);
+  header(title, "MENU");
+  canvas.setFont(&fonts::DejaVu12);
+  canvas.setTextSize(1);
+  const int lineHeight = 15, visible = 7;
+  int first = selected < visible ? 0 : selected - visible + 1;   // keep the selection in view
+  for (int i = first; i < count && i < first + visible; i++) {
+    int y = HEADER_HEIGHT + 3 + (i - first) * lineHeight;
+    if (i == selected) {
+      canvas.fillRect(0, y - 1, WIDTH, lineHeight, NAVY);
+      canvas.setTextColor(YELLOW);
+    } else {
+      canvas.setTextColor(WHITE);
+    }
+    canvas.setCursor(8, y);
+    canvas.print(labels[i]);
+  }
+  canvas.setTextColor(YELLOW);
+  canvas.setCursor(4, HEIGHT - 13);
+  canvas.print("B: next   A: choose   hold A: close");
+  canvas.setFont(&fonts::Font0);
 }
 
 void helpPage(const char *title, const HelpItem *items, int count) {
@@ -73,7 +98,7 @@ void helpPage(const char *title, const HelpItem *items, int count) {
   }
   canvas.setTextColor(WHITE);
   canvas.setCursor(4, HEIGHT - 13);
-  canvas.print("any key: close help");
+  canvas.print(board::hasKeyboard() ? "any key: close help" : "any button: close help");
   canvas.setFont(&fonts::Font0);             // back to the default font
 }
 
@@ -110,6 +135,6 @@ void drawFlash() {
   canvas.setTextSize(1);
 }
 
-void push() { canvas.pushSprite(&M5Cardputer.Display, 0, 0); }
+void push() { canvas.pushSprite(&M5.Display, 0, 0); }
 
 }  // namespace ui

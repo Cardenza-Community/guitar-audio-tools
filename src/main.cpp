@@ -3,12 +3,13 @@
 // Shows the app launcher, runs the selected app and feeds it with
 // microphone samples, key presses and drawing requests. See ARCHITECTURE.md.
 // Launcher keys: , / browse, Enter opens, Esc (top left key) returns to it.
+// Runs on the Cardputer ADV and on the M5StickS3 (see hw/board.h).
 
-#include <M5Cardputer.h>
-#include <string>
+#include <M5Unified.h>
 #include "app.h"
 #include "launcher.h"
 #include "version.h"
+#include "hw/board.h"
 #include "hw/es8311.h"
 #include "services/audio_in.h"
 #include "services/settings.h"
@@ -16,12 +17,16 @@
 
 App *current = nullptr;         // the running app, nullptr = launcher
 bool showingHelp = false;       // the h key: help page instead of the app
+void drawHelp();
+void drawMenu();
+extern bool menuOpen;
 
 // ---------- apps ----------
 
 void openApp(App *app) {
   current = app;
   showingHelp = false;
+  menuOpen = false;
   current->enter();
   if (current->sampleRate() > 0 && !audio_in::start(current->sampleRate(), current->micGain()))
     Serial.println("audio_in::start failed");
@@ -29,12 +34,13 @@ void openApp(App *app) {
 
 void closeApp() {
   showingHelp = false;
+  menuOpen = false;
   audio_in::stop();
   current->exit();
   current = nullptr;
 }
 
-// ---------- keyboard ----------
+// ---------- input ----------
 
 // A key goes to the running app, or to the launcher when no app runs.
 void deliver(const Key &key) {
@@ -45,60 +51,95 @@ void deliver(const Key &key) {
   }
 }
 
-// The library reports a change whenever the NUMBER of held keys changes and
-// then lists all keys held down. In fast typing the keys overlap (the next one
-// is pressed before the previous one is released), so only the keys that were
-// not held before are passed on; otherwise "ri" would come out as "rri".
-void handleKeys() {
-  if (!M5Cardputer.Keyboard.isChange()) return;
-  auto state = M5Cardputer.Keyboard.keysState();
-  static std::string held;              // keys held at the last change
-  static bool heldEnter = false, heldDel = false;
+// The StickS3 action menu (double click on A): the app's actions, then Help.
+bool menuOpen = false;
+int menuIndex = 0;
 
-  std::string before = held, fresh;
-  for (char ch : state.word) {
-    size_t p = before.find(ch);
-    if (p != std::string::npos) before.erase(p, 1);
-    else fresh += ch;
-  }
-  Key key;
-  key.enter = state.enter && !heldEnter;
-  key.del = state.del && !heldDel;
-  held.assign(state.word.begin(), state.word.end());
-  heldEnter = state.enter;
-  heldDel = state.del;
-  if (fresh.empty() && !key.enter && !key.del) return;   // a key was released
+int menuItems(const Action *&actions) { return current ? current->actions(actions) : 0; }
 
-  // while the help page is shown, any key closes it (Esc too)
-  if (showingHelp) {
-    showingHelp = false;
-    return;
+void menuInput(const board::Input &input) {
+  const Action *actions = nullptr;
+  int count = menuItems(actions) + 1;               // + Help
+  if (input.special == board::Special::Back || input.special == board::Special::Menu) {
+    menuOpen = false;
+  } else if (input.key.ch == '/') {
+    menuIndex = (menuIndex + 1) % count;
+  } else if (input.key.ch == ',') {
+    menuIndex = (menuIndex + count - 1) % count;
+  } else if (input.key.enter) {
+    menuOpen = false;
+    if (menuIndex == count - 1) showingHelp = true;
+    else deliver(actions[menuIndex].key);
   }
+}
 
-  if (fresh.empty()) {
-    deliver(key);
-    return;
-  }
-  for (char ch : fresh) {
-    key.ch = ch;
-    if (current && current->capturesKeys()) {
-      deliver(key);               // typing: every key goes to the app
-    } else if (ch == '`') {       // Esc
-      if (current) closeApp();
-    } else if (ch == 'h') {       // help page
-      showingHelp = true;
-    } else {
-      deliver(key);
+void handleInput() {
+  board::update(current && current->capturesKeys());
+  board::Input input;
+  while (board::nextInput(input)) {
+    if (showingHelp) {                              // any key closes the help page
+      showingHelp = false;
+      continue;
     }
-    key.enter = key.del = false;  // Enter / Del only once
+    if (menuOpen) {
+      menuInput(input);
+      continue;
+    }
+    switch (input.special) {
+      case board::Special::Back:
+        if (current) closeApp();
+        break;
+      case board::Special::Help:
+        showingHelp = true;
+        break;
+      case board::Special::Menu:
+        if (current) {
+          menuOpen = true;
+          menuIndex = 0;
+        } else {
+          showingHelp = true;                       // the launcher has no actions
+        }
+        break;
+      default:
+        deliver(input.key);
+    }
   }
+}
+
+// The help page. On the StickS3 the controls come first, followed by the
+// app's explanations only (its key lines are Cardputer keys).
+void drawHelp() {
+  const ui::HelpItem *items = nullptr;
+  int count = current ? current->help(items) : launcher::help(items);
+  const char *title = current ? current->name() : "Guitar Audio Tools";
+  const ui::HelpItem *controls = nullptr;
+  int controlCount = board::controlsHelp(controls);
+  if (controlCount == 0) {
+    ui::helpPage(title, items, count);
+    return;
+  }
+  static ui::HelpItem lines[7];
+  int n = 0;
+  for (int i = 0; i < controlCount && n < 7; i++) lines[n++] = controls[i];
+  for (int i = 0; i < count && n < 7; i++)
+    if (!items[i].keys) lines[n++] = items[i];
+  ui::helpPage(title, lines, n);
+}
+
+void drawMenu() {
+  const Action *actions = nullptr;
+  int count = menuItems(actions);
+  static const char *labels[16];
+  int n = 0;
+  for (int i = 0; i < count && n < 15; i++) labels[n++] = actions[i].label;
+  labels[n++] = "Help";
+  ui::menuPage(current ? current->name() : "", labels, n, menuIndex);
 }
 
 // ---------- main program ----------
 
 void setup() {
-  auto cfg = M5.config();
-  M5Cardputer.begin(cfg, true);       // true = enable the keyboard too
+  board::begin();
   Serial.begin(115200);
   Serial.println("Guitar Audio Tools " FIRMWARE_VERSION);
   es8311::installQuietMicCallback();  // no pop in the speaker when an app closes
@@ -108,8 +149,7 @@ void setup() {
 }
 
 void loop() {
-  M5Cardputer.update();
-  handleKeys();
+  handleInput();
 
   if (current) current->tick();
 
@@ -126,9 +166,9 @@ void loop() {
     lastDraw = millis();
     ui::clear();
     if (showingHelp) {
-      const ui::HelpItem *items = nullptr;
-      int count = current ? current->help(items) : launcher::help(items);
-      ui::helpPage(current ? current->name() : "Guitar Audio Tools", items, count);
+      drawHelp();
+    } else if (menuOpen) {
+      drawMenu();
     } else if (current) {
       current->draw(ui::canvas);
       ui::drawFlash();

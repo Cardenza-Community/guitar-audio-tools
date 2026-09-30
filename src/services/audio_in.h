@@ -1,7 +1,7 @@
 // Gapless microphone input.
 //
 // While started, the microphone records all the time: two small buffers are
-// queued in M5Cardputer.Mic; each filled buffer is copied into a FreeRTOS
+// queued in M5.Mic; each filled buffer is copied into a FreeRTOS
 // stream buffer (about 0.5 s of sound) and queued again. The main loop takes
 // the samples out with read(). No sound is lost between blocks as long as the
 // main loop reads faster than the microphone produces (droppedSamples() = 0).

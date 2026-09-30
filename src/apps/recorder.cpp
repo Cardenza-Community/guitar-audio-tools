@@ -15,11 +15,12 @@
 // Keys: Enter record / stop, space play / stop, , / previous / next recording,
 //       Del delete (press twice), ; . microphone gain (volume while playing).
 #include <SD.h>
-#include <M5Cardputer.h>
+#include <M5Unified.h>
 #include <vector>
 #include "apps.h"
 #include "level.h"
 #include "wav.h"
+#include "../hw/board.h"
 #include "../hw/es8311.h"
 #include "../services/audio_in.h"
 #include "../services/settings.h"
@@ -129,7 +130,7 @@ class RecorderApp : public App {
       int step = key.ch == ';' ? 1 : -1;
       if (mode_ == Mode::Playing) {
         volume_ = constrain(volume_ + step, 0, 10);
-        M5Cardputer.Speaker.setVolume(volume_ * 25);
+        M5.Speaker.setVolume(board::speakerVolume(volume_));
         settings::putInt("rec_vol", volume_);
         ui::flashLevel("VOLUME", volume_, 10, "");
       } else {
@@ -404,8 +405,8 @@ class RecorderApp : public App {
       return;
     }
     audio_in::stop();                                  // the speaker needs the I2S bus
-    M5Cardputer.Speaker.begin();
-    M5Cardputer.Speaker.setVolume(volume_ * 25);
+    M5.Speaker.begin();
+    M5.Speaker.setVolume(board::speakerVolume(volume_));
     for (auto &b : playBuffers_) b.assign(PLAY_BLOCK, 0);
     nextBuffer_ = 0;
     played_ = 0;
@@ -417,23 +418,23 @@ class RecorderApp : public App {
   // keep up to two blocks queued on the speaker channel; three buffers take
   // turns, so a buffer is only refilled after the speaker has released it
   void feedSpeaker() {
-    while (!fileDone_ && M5Cardputer.Speaker.isPlaying(0) < 2) {
+    while (!fileDone_ && M5.Speaker.isPlaying(0) < 2) {
       std::vector<int16_t> &b = playBuffers_[nextBuffer_];
       int bytes = file_.read((uint8_t *)b.data(), PLAY_BLOCK * sizeof(int16_t));
       if (bytes <= 0) {
         fileDone_ = true;
         break;
       }
-      M5Cardputer.Speaker.playRaw(b.data(), bytes / sizeof(int16_t), playRate_, false, 1, 0, false);
+      M5.Speaker.playRaw(b.data(), bytes / sizeof(int16_t), playRate_, false, 1, 0, false);
       played_ += bytes / sizeof(int16_t);
       nextBuffer_ = (nextBuffer_ + 1) % 3;
     }
-    if (fileDone_ && M5Cardputer.Speaker.isPlaying(0) == 0) stopPlaying(true);
+    if (fileDone_ && M5.Speaker.isPlaying(0) == 0) stopPlaying(true);
   }
 
   void stopPlaying(bool restartMic) {
-    M5Cardputer.Speaker.stop();
-    M5Cardputer.Speaker.end();
+    M5.Speaker.stop();
+    M5.Speaker.end();
     es8311::speakerOff();                              // otherwise the idle amplifier hums
     file_.close();
     mode_ = Mode::Idle;

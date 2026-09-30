@@ -2,7 +2,7 @@
 // Everything is drawn into an off-screen canvas and pushed to the display at
 // once, so the picture does not flicker.
 #pragma once
-#include <M5Cardputer.h>
+#include <M5Unified.h>
 
 namespace ui {
 
@@ -25,11 +25,14 @@ void begin();
 void clear();
 void header(const char *title, const char *right = nullptr);
 void footer(const char *help);
-// the standard bottom line: "h: help   Esc: back" in yellow
+// the standard bottom line in yellow: "h: help   Esc: back" (Cardputer),
+// "2x A: menu   hold A: back" (StickS3)
 void footerHelp();
 // full-screen help page (bigger, clearer font), shown while h is active;
 // up to 7 lines of about 34 characters
 void helpPage(const char *title, const HelpItem *items, int count);
+// the StickS3 action menu: a list of labels, the selected one highlighted
+void menuPage(const char *title, const char *const *labels, int count, int selected);
 // big "MIC GAIN 27 dB" box with a 0...30 dB bar for 1.5 s (after ; or .);
 // main draws it over the app with drawFlash()
 void flashGain(int db);

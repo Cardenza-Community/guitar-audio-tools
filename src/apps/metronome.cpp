@@ -10,12 +10,13 @@
 //
 // Keys: Enter start/stop, , / tempo -1/+1, - = tempo -5/+5, space tap tempo,
 //       m time signature 2/4 3/4 4/4 6/8, ; . volume, l tempo from the BPM app.
-#include <M5Cardputer.h>
+#include <M5Unified.h>
 #include <atomic>
 #include <cmath>
 #include <esp_timer.h>
 #include "apps.h"
 #include "tempo.h"
+#include "../hw/board.h"
 #include "../hw/es8311.h"
 #include "../services/settings.h"
 #include "../services/ui.h"
@@ -26,16 +27,21 @@ const int MIN_BPM = 30, MAX_BPM = 250;
 const int METERS[] = {2, 3, 4, 6};         // beats per bar; 6 = 6/8 (accents on 1 and 4)
 const char *METER_NAMES[] = {"2/4", "3/4", "4/4", "6/8"};
 const int CLICK_RATE = 44100;
-const int CLICK_SAMPLES = CLICK_RATE * 25 / 1000;   // 25 ms
+const int CLICK_SAMPLES = CLICK_RATE * 40 / 1000;   // 40 ms (the Cardputer's click uses 25 ms)
 const uint32_t FLASH_MS = 90;
 
 // the three click sounds: first beat, secondary accent (6/8), other beats
 int16_t clickAccent[CLICK_SAMPLES], clickMiddle[CLICK_SAMPLES], clickBeat[CLICK_SAMPLES];
 
+// A decaying sine: 25 ms with a 6 ms decay on the Cardputer; on the StickS3
+// (quieter speaker) 40 ms with a 10 ms decay. The rest of the buffer is silence.
 void makeClick(int16_t *out, float hz, float level) {
+  bool loud = board::loudClicks();
+  float decay = loud ? 0.010f : 0.006f;
+  int length = loud ? CLICK_SAMPLES : CLICK_RATE * 25 / 1000;
   for (int i = 0; i < CLICK_SAMPLES; i++) {
     float t = (float)i / CLICK_RATE;
-    out[i] = (int16_t)(level * 30000 * expf(-t / 0.006f) * sinf(2 * (float)M_PI * hz * t));
+    out[i] = i < length ? (int16_t)(level * 30000 * expf(-t / decay) * sinf(2 * (float)M_PI * hz * t)) : 0;
   }
 }
 
@@ -49,10 +55,12 @@ class MetronomeApp : public App {
     meter_ = constrain(settings::getInt("met_meter", 2), 0, 3);
     volume_ = constrain(settings::getInt("met_vol", 7), 0, 10);
     fromBpmApp_ = settings::getInt("bpm_last", 0);
+    bool loud = board::loudClicks();
     makeClick(clickAccent, 2000, 1.0f);
-    makeClick(clickMiddle, 1600, 0.8f);
-    makeClick(clickBeat, 1300, 0.6f);
-    M5Cardputer.Speaker.begin();
+    makeClick(clickMiddle, 1600, loud ? 0.9f : 0.8f);
+    makeClick(clickBeat, 1300, loud ? 0.85f : 0.6f);
+    board::prepareSpeaker(CLICK_RATE);             // StickS3: no rate conversion
+    M5.Speaker.begin();
     applyVolume();
     running_ = false;
     quit_ = false;
@@ -66,8 +74,8 @@ class MetronomeApp : public App {
     running_ = false;
     quit_ = true;
     while (!taskDone_) delay(1);                 // wait for the clock task to end
-    M5Cardputer.Speaker.stop();
-    M5Cardputer.Speaker.end();
+    M5.Speaker.stop();
+    M5.Speaker.end();
     es8311::speakerOff();                        // otherwise the idle amplifier hums
     settings::putInt("met_bpm", bpm_);
     settings::putInt("met_meter", meter_.load());
@@ -75,6 +83,20 @@ class MetronomeApp : public App {
   }
 
   void process(const int16_t *, size_t) override {}
+
+  // the M5StickS3 action menu (double click on A)
+  int actions(const Action *&items) const override {
+    static const Action ACTIONS[] = {
+        {"Tempo +5", {'='}},
+        {"Tempo -5", {'-'}},
+        {"Time signature", {'m'}},
+        {"Volume +", {';'}},
+        {"Volume -", {'.'}},
+        {"Tempo from BPM", {'l'}},
+    };
+    items = ACTIONS;
+    return sizeof(ACTIONS) / sizeof(ACTIONS[0]);
+  }
 
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
@@ -172,7 +194,7 @@ class MetronomeApp : public App {
 
  private:
   void setBpm(int bpm) { bpm_ = constrain(bpm, MIN_BPM, MAX_BPM); }
-  void applyVolume() { M5Cardputer.Speaker.setVolume(volume_ * 25); }
+  void applyVolume() { M5.Speaker.setVolume(board::speakerVolume(volume_)); }
 
   static void clockTask(void *arg) {
     static_cast<MetronomeApp *>(arg)->clock();
@@ -205,7 +227,7 @@ class MetronomeApp : public App {
 
   void click(int beat) {
     const int16_t *sound = beat == 0 ? clickAccent : (METERS[meter_] == 6 && beat == 3) ? clickMiddle : clickBeat;
-    M5Cardputer.Speaker.playRaw(sound, CLICK_SAMPLES, CLICK_RATE, false, 1, 0, true);
+    M5.Speaker.playRaw(sound, CLICK_SAMPLES, CLICK_RATE, false, 1, 0, true);
   }
 
   // shared with the clock task on the other core

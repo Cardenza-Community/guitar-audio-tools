@@ -84,6 +84,18 @@ class DecibelMeterApp : public App {
     logToSerial(peak);
   }
 
+  // the M5StickS3 action menu (double click on A)
+  int actions(const Action *&items) const override {
+    static const Action ACTIONS[] = {
+        {"A / Z weighting", {'a'}},
+        {"Calibrate / cancel", {'c'}},
+        {"Calibration +0.5 dB", {';'}},
+        {"Calibration -0.5 dB", {'.'}},
+    };
+    items = ACTIONS;
+    return sizeof(ACTIONS) / sizeof(ACTIONS[0]);
+  }
+
   int help(const ui::HelpItem *&items) const override {
     static const ui::HelpItem HELP[] = {
         {"a", "A: like the ear, Z: flat"},

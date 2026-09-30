@@ -2,6 +2,7 @@
 #include <cstring>
 #include "version.h"
 #include "apps/apps.h"
+#include "hw/board.h"
 #include "services/settings.h"
 #include "services/ui.h"
 
@@ -144,6 +145,7 @@ struct Entry {
   const char *description;
   IconFn icon;
   App *app;        // nullptr = not written yet
+  bool needsSdCard = false;
 };
 
 // Adding an app: write it in src/apps/, declare it in apps.h, add a line here.
@@ -152,21 +154,27 @@ static Entry entries[] = {
     {"Strum tuner", "all strings at once", iconStrumTuner, strumTunerApp()},
     {"Metronome", "click, accents, tap", iconMetronome, metronomeApp()},
     {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
-    {"Chords", "chord shapes: type a name", iconChords, chordsApp()},
+    {"Chords", "chord shapes on the neck", iconChords, chordsApp()},
     {"Scales", "scales on the fretboard", iconScales, scalesApp()},
-    {"Recorder", "WAV on the SD card", iconRecorder, recorderApp()},
+    {"Recorder", "WAV on the SD card", iconRecorder, recorderApp(), true},
     {"Intonation", "guitar setup, fret 12", iconIntonation, intonationApp()},
     {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
     {"Decibel meter", "sound level in dB", iconDecibel, decibelMeterApp()},
     {"Mic test", "diagnostics", iconMicTest, micTestApp()},
 };
-static const int COUNT = sizeof(entries) / sizeof(entries[0]);
+static const int ALL = sizeof(entries) / sizeof(entries[0]);
 
-static int selected = 0;
+// the entries this device can run (the StickS3 has no SD card: no Recorder)
+static int shown[ALL];
+static int COUNT = 0;
+static int selected = 0;                 // index into shown[]
 
 // The last opened app is saved by its title, not its position: the order of
 // the list can change without opening a different app after an update.
 void begin() {
+  COUNT = 0;
+  for (int i = 0; i < ALL; i++)
+    if (!entries[i].needsSdCard || board::hasSdCard()) shown[COUNT++] = i;
   // before 1.0.0-beta.1 the position was saved ("last_app"), in this order
   static const char *const OLD_ORDER[] = {"Decibel meter", "Guitar tuner", "Strum tuner", "Spectrum",
                                           "BPM", "Metronome", "Intonation", "Chords", "Scales",
@@ -178,14 +186,14 @@ void begin() {
     settings::remove("last_app");
   }
   char title[24];
-  settings::getString("last_title", title, sizeof(title), entries[0].title);
+  settings::getString("last_title", title, sizeof(title), entries[shown[0]].title);
   for (int i = 0; i < COUNT; i++)
-    if (strcmp(entries[i].title, title) == 0) selected = i;
+    if (strcmp(entries[shown[i]].title, title) == 0) selected = i;
 }
 
 void draw() {
   auto &c = ui::canvas;
-  const Entry &e = entries[selected];
+  const Entry &e = entries[shown[selected]];
 
   char position[8];
   snprintf(position, sizeof(position), "%d/%d", selected + 1, COUNT);
@@ -211,7 +219,7 @@ void draw() {
   c.setTextSize(1);
   c.setTextColor(YELLOW);
   c.setCursor(3, ui::FOOTER_Y);
-  c.print(", / browse   Enter open   h help");
+  c.print(board::launcherFooterText());
 }
 
 static const ui::HelpItem HELP[] = {
@@ -232,9 +240,10 @@ int help(const ui::HelpItem *&items) {
 App *onKey(const Key &key) {
   if (key.ch == ',') selected = (selected + COUNT - 1) % COUNT;
   if (key.ch == '/') selected = (selected + 1) % COUNT;
-  if (key.enter && entries[selected].app) {
-    settings::putString("last_title", entries[selected].title);
-    return entries[selected].app;
+  const Entry &e = entries[shown[selected]];
+  if (key.enter && e.app) {
+    settings::putString("last_title", e.title);
+    return e.app;
   }
   return nullptr;
 }
