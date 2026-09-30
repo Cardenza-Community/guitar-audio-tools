@@ -39,8 +39,8 @@ bool hasSdCard();
 // can reset it); the metronome clicks at full volume did not reset it in a
 // test on battery (2026-09-30), so 10 is the full volume on both boards.
 uint8_t speakerVolume(int volume);
-// Sets the speaker up for sounds of `sampleRate` Hz, mono; call before
-// M5.Speaker.begin(). On the StickS3 M5Unified uses 22050 Hz stereo: sounds of
+// Sets the speaker up for sounds of `sampleRate` Hz, mono, at full level;
+// call before M5.Speaker.begin(). On the StickS3 M5Unified uses 22050 Hz stereo: sounds of
 // another rate are converted and a metronome click there was sometimes played
 // twice (28-32 ms apart, measured) and ±30 ms late. The Cardputer (48 kHz mono)
 // is left as it is.

@@ -14,10 +14,17 @@
 // Enter saves, an empty name or Esc keeps REC_0005 etc.).
 // Keys: Enter record / stop, space play / stop, , / previous / next recording,
 //       Del delete (press twice), ; . microphone gain (volume while playing).
-#include <SD.h>
+//
+// M5StickS3 (no SD card, no keyboard): a simple recorder of ideas in the flash
+// memory (about 5.5 minutes in total): 8 kHz (the microphone's 16 kHz halved
+// by the dsp::Decimator), no names. A record / stop, B play / stop, hold B
+// next recording; the menu has the previous recording, delete (choose it
+// twice), gain and volume.
 #include <M5Unified.h>
+#include <memory>
 #include <vector>
 #include "apps.h"
+#include "decimator.h"
 #include "level.h"
 #include "wav.h"
 #include "../hw/board.h"
@@ -29,7 +36,22 @@
 
 namespace {
 
-const int RATE = 16000;
+const int RATE = 16000;                  // microphone
+#ifdef BOARD_STICKS3
+const int FILE_RATE = 8000;              // the recordings (flash memory is small)
+#else
+const int FILE_RATE = RATE;
+#endif
+const int DECIMATE = RATE / FILE_RATE;
+enum Command { PREVIOUS = 1 };           // Stick menu (Key::command)
+// StickS3: its own settings, loud by default (a quiet microphone and speaker)
+#ifdef BOARD_STICKS3
+const char *GAIN_KEY = "g_rec_s", *VOLUME_KEY = "rec_vol_s";
+const int DEFAULT_GAIN = 30, DEFAULT_VOLUME = 10;
+#else
+const char *GAIN_KEY = "g_rec", *VOLUME_KEY = "rec_vol";
+const int DEFAULT_GAIN = 24, DEFAULT_VOLUME = 7;
+#endif
 const size_t WRITE_BLOCK = 8192;         // samples written at once (16 KB)
 const size_t PLAY_BLOCK = 2048;          // samples per speaker buffer
 const uint32_t DELETE_CONFIRM_MS = 3000;
@@ -42,7 +64,7 @@ class RecorderApp : public App {
  public:
   const char *name() const override { return "Recorder"; }
   uint32_t sampleRate() const override { return RATE; }
-  int micGain() const override { return settings::getInt("g_rec", 24); }
+  int micGain() const override { return settings::getInt(GAIN_KEY, DEFAULT_GAIN); }
 
   void enter() override {
     haveCard_ = storage::begin();
@@ -50,8 +72,9 @@ class RecorderApp : public App {
     selected_ = list_.empty() ? -1 : (int)list_.size() - 1;
     mode_ = Mode::Idle;
     naming_ = false;
-    message_ = haveCard_ ? "" : "no SD card";
-    volume_ = settings::getInt("rec_vol", 7);
+    message_ = haveCard_ ? "" : board::hasSdCard() ? "no SD card" : "no memory for recordings";
+    decimator_.reset(DECIMATE > 1 ? new dsp::Decimator(DECIMATE) : nullptr);
+    volume_ = settings::getInt(VOLUME_KEY, DEFAULT_VOLUME);
   }
 
   void exit() override {
@@ -69,19 +92,47 @@ class RecorderApp : public App {
     if (peak > 32000) clipMs_ = millis();
     if (mode_ != Mode::Recording) return;
     recPeak_ = std::max(recPeak_, peak);
-    for (size_t i = 0; i < count; i++) {
-      block_.push_back(samples[i]);
-      if (block_.size() == WRITE_BLOCK) flush();
+    if (decimator_) {                                   // StickS3: 16 -> 8 kHz
+      float reduced[256 / 2 + 2];
+      for (size_t done = 0; done < count; done += 256) {
+        size_t n = decimator_->process(samples + done, std::min<size_t>(256, count - done), reduced);
+        for (size_t i = 0; i < n; i++) add((int16_t)constrain(lroundf(reduced[i]), -32768, 32767));
+      }
+    } else {
+      for (size_t i = 0; i < count; i++) add(samples[i]);
     }
-    recorded_ += count;
   }
 
   void tick() override {
+    if (mode_ == Mode::Recording && full_) {             // no space left
+      stopRecording();
+      message_ = "memory full - recording stopped";
+    }
     if (mode_ == Mode::Playing) feedSpeaker();
     if (mode_ == Mode::Normalizing) normalizeStep();
   }
 
+  // the M5StickS3 action menu (double click on A)
+  int actions(const Action *&items) const override {
+    static const Action ACTIONS[] = {
+        {"Previous recording", {0, false, false, PREVIOUS}},
+        {"Delete (choose twice)", {0, false, true}},
+        {"Gain / volume +", {';'}},
+        {"Gain / volume -", {'.'}},
+    };
+    items = ACTIONS;
+    return sizeof(ACTIONS) / sizeof(ACTIONS[0]);
+  }
+
   int help(const ui::HelpItem *&items) const override {
+#ifdef BOARD_STICKS3
+    static const ui::HelpItem HELP[] = {
+        {nullptr, "A: record / stop"},
+        {nullptr, "B: play / stop, hold B: next"},
+        {nullptr, "8 kHz WAV in the flash memory"},
+        {nullptr, "~5.5 minutes in total"},
+    };
+#else
     static const ui::HelpItem HELP[] = {
         {"Enter", "record / stop"},
         {"space", "play / stop the selected"},
@@ -91,17 +142,25 @@ class RecorderApp : public App {
         {nullptr, "files: /recordings on the SD"},
         {nullptr, "16 kHz mono WAV, ~115 MB/h"},
     };
+#endif
     items = HELP;
     return sizeof(HELP) / sizeof(HELP[0]);
   }
 
   bool capturesKeys() const override { return naming_; }
 
-  void onKey(const Key &key) override {
+  void onKey(const Key &original) override {
     if (!haveCard_) return;
     if (naming_) {
-      nameKey(key);
+      nameKey(original);
       return;
+    }
+    // StickS3: B = play / stop, hold B = next, menu "previous" = ","
+    Key key = original;
+    if (!board::hasKeyboard()) {
+      if (key.ch == '/') key.ch = ' ';
+      else if (key.ch == ',') key.ch = '/';
+      if (key.command == PREVIOUS) key.ch = ',';
     }
     if (key.enter) {
       if (mode_ == Mode::Idle) startRecording();
@@ -112,8 +171,14 @@ class RecorderApp : public App {
       else if (mode_ == Mode::Playing) stopPlaying(true);
     }
     if (mode_ == Mode::Idle && !list_.empty()) {
-      if (key.ch == ',') selected_ = std::max(0, selected_ - 1);
-      if (key.ch == '/') selected_ = std::min((int)list_.size() - 1, selected_ + 1);
+      int n = (int)list_.size();
+      if (board::hasKeyboard()) {
+        if (key.ch == ',') selected_ = std::max(0, selected_ - 1);
+        if (key.ch == '/') selected_ = std::min(n - 1, selected_ + 1);
+      } else {                                          // StickS3: round, the newest is selected
+        if (key.ch == ',') selected_ = (selected_ + n - 1) % n;
+        if (key.ch == '/') selected_ = (selected_ + 1) % n;
+      }
     }
     if (key.del && mode_ == Mode::Idle && selected_ >= 0) {
       if (deleteAsked()) {
@@ -131,11 +196,11 @@ class RecorderApp : public App {
       if (mode_ == Mode::Playing) {
         volume_ = constrain(volume_ + step, 0, 10);
         M5.Speaker.setVolume(board::speakerVolume(volume_));
-        settings::putInt("rec_vol", volume_);
+        settings::putInt(VOLUME_KEY, volume_);
         ui::flashLevel("VOLUME", volume_, 10, "");
       } else {
         es8311::setPgaGain(es8311::pgaGain() + 3 * step);
-        settings::putInt("g_rec", es8311::pgaGain());
+        settings::putInt(GAIN_KEY, es8311::pgaGain());
         ui::flashGain(es8311::pgaGain());
       }
     }
@@ -147,8 +212,14 @@ class RecorderApp : public App {
       return;
     }
     char right[24];
-    if (haveCard_) snprintf(right, sizeof(right), "%u MB free", (unsigned)freeMb_);
-    else snprintf(right, sizeof(right), "no SD");
+    if (!haveCard_) {
+      snprintf(right, sizeof(right), board::hasSdCard() ? "no SD" : "no memory");
+    } else if (board::hasSdCard()) {
+      snprintf(right, sizeof(right), "%u MB free", (unsigned)freeMb_);
+    } else {                                            // StickS3: minutes left
+      uint32_t seconds = (uint32_t)(freeBytes_ / (FILE_RATE * 2));
+      snprintf(right, sizeof(right), "%u:%02u left", (unsigned)(seconds / 60), (unsigned)(seconds % 60));
+    }
     ui::header("Recorder", right);
 
     // state and time
@@ -157,7 +228,7 @@ class RecorderApp : public App {
     if (mode_ == Mode::Recording) {
       c.setTextColor(RED);
       c.print("REC ");
-      printTime(c, recorded_ / RATE);
+      printTime(c, recorded_ / FILE_RATE);
     } else if (mode_ == Mode::Playing) {
       c.setTextColor(GREEN);
       c.print("PLAY ");
@@ -168,7 +239,7 @@ class RecorderApp : public App {
                                      std::max<uint32_t>(1, normEnd_ - dsp::WAV_HEADER_BYTES)));
     } else {
       c.setTextColor(WHITE);
-      c.print(haveCard_ ? "READY" : "NO SD CARD");
+      c.print(haveCard_ ? "READY" : board::hasSdCard() ? "NO SD CARD" : "NO MEMORY");
     }
 
     // input level (not while playing: the microphone is off)
@@ -196,7 +267,7 @@ class RecorderApp : public App {
       c.setTextColor(WHITE);
       c.print(r.name);
       c.print(" ");
-      printTime(c, r.bytes > dsp::WAV_HEADER_BYTES ? (r.bytes - dsp::WAV_HEADER_BYTES) / 2 / RATE : 0);
+      printTime(c, r.bytes > dsp::WAV_HEADER_BYTES ? (r.bytes - dsp::WAV_HEADER_BYTES) / 2 / FILE_RATE : 0);
       c.setTextColor(YELLOW);
       c.print(selected_ < (int)list_.size() - 1 ? " >" : "");
       c.setTextSize(1);
@@ -213,7 +284,7 @@ class RecorderApp : public App {
     c.setCursor(4, 100);
     if (deleteAsked()) {
       c.setTextColor(ORANGE);
-      c.print("delete? press Del again");
+      c.print(board::hasKeyboard() ? "delete? press Del again" : "delete? choose Delete again");
     } else if (message_[0]) {
       c.setTextColor(ORANGE);
       c.print(message_);
@@ -224,7 +295,7 @@ class RecorderApp : public App {
     if (audio_in::droppedSamples() > droppedAtStart_ && mode_ == Mode::Recording) {
       c.setTextColor(RED);
       c.setCursor(4, 112);
-      c.print("SD card too slow: gaps!");
+      c.print(board::hasSdCard() ? "SD card too slow: gaps!" : "memory too slow: gaps!");
     }
     ui::footerHelp();
   }
@@ -239,22 +310,25 @@ class RecorderApp : public App {
   void refresh() {
     list_ = storage::recordings();
     freeMb_ = storage::freeMegabytes();
+    freeBytes_ = storage::freeBytes();
   }
 
   // ---------- recording ----------
 
   void startRecording() {
     path_ = storage::newRecordingPath();
-    file_ = SD.open(path_, FILE_WRITE);
+    file_ = storage::fs().open(path_, FILE_WRITE);
     if (!file_) {
       message_ = "cannot create the file";
       return;
     }
     uint8_t header[dsp::WAV_HEADER_BYTES];
-    dsp::makeWavHeader(header, RATE, 0);
+    dsp::makeWavHeader(header, FILE_RATE, 0);
     file_.write(header, sizeof(header));
     block_.clear();
     block_.reserve(WRITE_BLOCK);
+    if (decimator_) decimator_->reset();
+    full_ = false;
     recorded_ = 0;
     recPeak_ = 0;
     droppedAtStart_ = audio_in::droppedSamples();
@@ -262,8 +336,15 @@ class RecorderApp : public App {
     mode_ = Mode::Recording;
   }
 
+  void add(int16_t sample) {
+    block_.push_back(sample);
+    recorded_++;
+    if (block_.size() == WRITE_BLOCK) flush();
+  }
+
   void flush() {
-    if (!block_.empty()) file_.write((const uint8_t *)block_.data(), block_.size() * sizeof(int16_t));
+    size_t bytes = block_.size() * sizeof(int16_t);
+    if (bytes && file_.write((const uint8_t *)block_.data(), bytes) != bytes) full_ = true;
     block_.clear();
   }
 
@@ -272,7 +353,7 @@ class RecorderApp : public App {
     // position(), not size(): size() of a file open for writing is still 0
     uint32_t dataBytes = file_.position() - dsp::WAV_HEADER_BYTES;
     uint8_t header[dsp::WAV_HEADER_BYTES];
-    dsp::makeWavHeader(header, RATE, dataBytes);
+    dsp::makeWavHeader(header, FILE_RATE, dataBytes);
     file_.seek(0);
     file_.write(header, sizeof(header));
     file_.close();
@@ -280,7 +361,7 @@ class RecorderApp : public App {
     Serial.printf("recorded %s, %u bytes, peak %d, gain %.1f dB\n", path_.c_str(), (unsigned)dataBytes,
                   recPeak_, 20 * log10f(normGain_));
     if (normGain_ > 1.12f) {                            // more than 1 dB to gain
-      file_ = SD.open(path_, "r+");
+      file_ = storage::fs().open(path_, "r+");
       if (file_) {
         normPos_ = dsp::WAV_HEADER_BYTES;
         normEnd_ = file_.size();
@@ -318,7 +399,7 @@ class RecorderApp : public App {
     mode_ = Mode::Idle;
     refresh();
     selectPath(path_);                                  // the new recording
-    naming_ = true;                                     // ask for a name
+    naming_ = board::hasKeyboard();                     // ask for a name (not on the Stick)
     name_ = "";
     message_ = "";
   }
@@ -395,7 +476,7 @@ class RecorderApp : public App {
 
   void startPlaying() {
     if (selected_ < 0) return;
-    file_ = SD.open(list_[selected_].path, FILE_READ);
+    file_ = storage::fs().open(list_[selected_].path, FILE_READ);
     uint8_t header[dsp::WAV_HEADER_BYTES];
     uint32_t dataBytes;
     if (!file_ || file_.read(header, sizeof(header)) != sizeof(header) ||
@@ -405,6 +486,7 @@ class RecorderApp : public App {
       return;
     }
     audio_in::stop();                                  // the speaker needs the I2S bus
+    board::prepareSpeaker(playRate_);                  // StickS3: no rate conversion
     M5.Speaker.begin();
     M5.Speaker.setVolume(board::speakerVolume(volume_));
     for (auto &b : playBuffers_) b.assign(PLAY_BLOCK, 0);
@@ -454,7 +536,10 @@ class RecorderApp : public App {
   File file_;
   String path_;
   std::vector<int16_t> block_;
-  uint32_t recorded_ = 0, droppedAtStart_ = 0;
+  uint32_t recorded_ = 0, droppedAtStart_ = 0;         // recorded_: samples in the file
+  std::unique_ptr<dsp::Decimator> decimator_;          // StickS3: 16 -> 8 kHz
+  bool full_ = false;                                  // a write failed: no space left
+  uint64_t freeBytes_ = 0;
   int recPeak_ = 0;
   float normGain_ = 1;
   uint32_t normPos_ = 0, normEnd_ = 0;

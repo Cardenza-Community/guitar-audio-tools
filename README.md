@@ -27,12 +27,17 @@ microphone, ESP32-S3, 8 MB PSRAM, a 240 x 135 display in landscape):
 - two buttons instead of the keyboard: **A** (front) click = main action,
   double click = action menu (the other functions of the app + Help),
   hold = back to the apps; **B** (right side) click = next, hold = previous;
-- no Recorder (no SD card);
+- the Recorder keeps ideas in the flash memory (no SD card): 8 kHz WAV,
+  about 5.5 minutes in total, no names; A record / stop, B play / stop,
+  hold B next recording (round), menu: previous, delete (choose twice),
+  gain / volume (loud by default: gain 30 dB, volume 10). Files survive a
+  power-off. The Mic test is left out;
 - Chords: A = next root, B = next shape, the menu changes the root and the
   chord type; Scales: A = next key, B = next scale;
-- the speaker is set to the metronome's 44.1 kHz mono (the default 22050 Hz
-  stereo played clicks twice now and then and up to 30 ms late) and the
-  clicks ring longer (a smaller speaker);
+- the speaker is set to the sound's own rate, mono, at full level (the
+  M5Unified default for the StickS3 is 22050 Hz stereo at 1/16 = −24 dB: it
+  played metronome clicks twice now and then, up to 30 ms late, and quietly);
+  the clicks ring longer (a smaller speaker);
 - the microphone differs from the Cardputer's: recalibrate the Strum tuner
   and the decibel meter;
 - automatic power-off after 5 minutes without a button press (a warning with

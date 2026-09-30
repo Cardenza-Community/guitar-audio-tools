@@ -1,29 +1,57 @@
 #include "storage.h"
+#include <algorithm>
+#ifdef BOARD_STICKS3
+#include <LittleFS.h>
+#else
 #include <SD.h>
 #include <SPI.h>
-#include <algorithm>
+#endif
 
 namespace storage {
 
+const char *DIR = "/recordings";
+static bool mounted = false;
+
+#ifdef BOARD_STICKS3
+
+// M5StickS3: no SD card - the recordings live in the flash memory, in the
+// "spiffs" partition (about 5.4 MB, partitions_sticks3.csv), with LittleFS.
+fs::FS &fs() { return LittleFS; }
+
+bool begin() {
+  if (mounted) return true;
+  if (!LittleFS.begin(true)) return false;          // true: format it the first time
+  if (!LittleFS.exists(DIR)) LittleFS.mkdir(DIR);
+  mounted = true;
+  return true;
+}
+
+uint64_t freeBytes() { return mounted ? LittleFS.totalBytes() - LittleFS.usedBytes() : 0; }
+
+#else
+
 // Cardputer ADV microSD slot (from the M5Cardputer sdcard example)
 const int PIN_SCK = 40, PIN_MISO = 39, PIN_MOSI = 14, PIN_CS = 12;
-const char *DIR = "/recordings";
 
-static bool mounted = false;
+fs::FS &fs() { return SD; }
 
 bool begin() {
   if (mounted) return true;
   SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
   if (!SD.begin(PIN_CS, SPI, 25000000)) return false;
-  if (!SD.exists(DIR)) SD.mkdir(DIR);
+  if (!fs().exists(DIR)) SD.mkdir(DIR);
   mounted = true;
   return true;
 }
 
+uint64_t freeBytes() { return mounted ? SD.totalBytes() - SD.usedBytes() : 0; }
+
+#endif
+
 std::vector<Recording> recordings() {
   std::vector<Recording> list;
   if (!mounted) return list;
-  File dir = SD.open(DIR);
+  File dir = fs().open(DIR);
   if (!dir) return list;
   for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
     String name = f.name();
@@ -53,18 +81,15 @@ String newRecordingPath() {
   do {
     number++;
     snprintf(path, sizeof(path), "%s/REC_%04d.wav", DIR, number);
-  } while (SD.exists(path));
+  } while (fs().exists(path));
   return String(path);
 }
 
-bool remove(const String &path) { return mounted && SD.remove(path); }
-bool exists(const String &path) { return mounted && SD.exists(path); }
-bool rename(const String &from, const String &to) { return mounted && SD.rename(from, to); }
+bool remove(const String &path) { return mounted && fs().remove(path); }
+bool exists(const String &path) { return mounted && fs().exists(path); }
+bool rename(const String &from, const String &to) { return mounted && fs().rename(from, to); }
 String recordingPath(const String &name) { return String(DIR) + "/" + name + ".wav"; }
 
-uint32_t freeMegabytes() {
-  if (!mounted) return 0;
-  return (uint32_t)((SD.totalBytes() - SD.usedBytes()) / (1024 * 1024));
-}
+uint32_t freeMegabytes() { return (uint32_t)(freeBytes() / (1024 * 1024)); }
 
 }  // namespace storage

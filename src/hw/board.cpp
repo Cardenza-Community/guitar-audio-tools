@@ -70,6 +70,9 @@ void prepareSpeaker(uint32_t sampleRate) {
   auto cfg = M5.Speaker.config();
   cfg.sample_rate = sampleRate;
   cfg.stereo = false;
+  // M5Unified scales the output by magnification x volume^2; 16 is full level
+  // (the Cardputer ADV uses 16), the StickS3 default is 1 = 24 dB quieter.
+  cfg.magnification = 16;
   M5.Speaker.config(cfg);
 }
 const char *footerText() { return "2x A: menu   hold A: back"; }

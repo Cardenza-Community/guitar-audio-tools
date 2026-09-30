@@ -145,7 +145,7 @@ struct Entry {
   const char *description;
   IconFn icon;
   App *app;        // nullptr = not written yet
-  bool needsSdCard = false;
+  bool onStickS3 = true;   // false: only on the Cardputer
 };
 
 // Adding an app: write it in src/apps/, declare it in apps.h, add a line here.
@@ -156,15 +156,19 @@ static Entry entries[] = {
     {"BPM", "tempo: listen or tap", iconBpm, bpmApp()},
     {"Chords", "chord shapes on the neck", iconChords, chordsApp()},
     {"Scales", "scales on the fretboard", iconScales, scalesApp()},
-    {"Recorder", "WAV on the SD card", iconRecorder, recorderApp(), true},
+#ifdef BOARD_STICKS3
+    {"Recorder", "ideas, in the flash memory", iconRecorder, recorderApp()},
+#else
+    {"Recorder", "WAV on the SD card", iconRecorder, recorderApp()},
+#endif
     {"Intonation", "guitar setup, fret 12", iconIntonation, intonationApp()},
     {"Spectrum", "music analyser bars", iconSpectrum, spectrumApp()},
     {"Decibel meter", "sound level in dB", iconDecibel, decibelMeterApp()},
-    {"Mic test", "diagnostics", iconMicTest, micTestApp()},
+    {"Mic test", "diagnostics", iconMicTest, micTestApp(), false},   // the Stick has the Recorder instead
 };
 static const int ALL = sizeof(entries) / sizeof(entries[0]);
 
-// the entries this device can run (the StickS3 has no SD card: no Recorder)
+// the entries shown on this device (the StickS3 leaves out the Mic test)
 static int shown[ALL];
 static int COUNT = 0;
 static int selected = 0;                 // index into shown[]
@@ -174,7 +178,7 @@ static int selected = 0;                 // index into shown[]
 void begin() {
   COUNT = 0;
   for (int i = 0; i < ALL; i++)
-    if (!entries[i].needsSdCard || board::hasSdCard()) shown[COUNT++] = i;
+    if (board::hasKeyboard() || entries[i].onStickS3) shown[COUNT++] = i;
   // before 1.0.0-beta.1 the position was saved ("last_app"), in this order
   static const char *const OLD_ORDER[] = {"Decibel meter", "Guitar tuner", "Strum tuner", "Spectrum",
                                           "BPM", "Metronome", "Intonation", "Chords", "Scales",
