@@ -47,7 +47,7 @@ microphone, ESP32-S3, 8 MB PSRAM, a 240 x 135 display in landscape):
 Everything that differs is in `src/hw/board.*`.
 
 ## Apps
-Version **1.1.0-beta.1** (shown on the launcher's help page `h` and printed on
+Version **1.1.0-beta.2** (shown on the launcher's help page `h` and printed on
 the serial console at start). In the order of the launcher:
 
 1. **Guitar tuner** – needle gauge ±50 cents, note name
