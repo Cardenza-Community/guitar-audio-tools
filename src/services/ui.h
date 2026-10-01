@@ -25,6 +25,10 @@ void begin();
 void clear();
 void header(const char *title, const char *right = nullptr);
 void footer(const char *help);
+// battery icon with percent in the header, its right edge at x = right;
+// coloured by charge (green / yellow / red), a lightning bolt while charging.
+// Returns its left edge (nothing drawn and `right` returned when unknown).
+int battery(int right);
 // the standard bottom line in yellow: "h: help   Esc: back" (Cardputer),
 // "2x A: menu   hold A: back" (StickS3)
 void footerHelp();

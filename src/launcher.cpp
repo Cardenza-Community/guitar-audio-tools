@@ -202,6 +202,7 @@ void draw() {
   char position[8];
   snprintf(position, sizeof(position), "%d/%d", selected + 1, COUNT);
   ui::header("Guitar Audio Tools", position);
+  ui::battery(ui::WIDTH - 3 - c.textWidth(position) - 8);
 
   e.icon(c, ui::WIDTH / 2, 50);
 

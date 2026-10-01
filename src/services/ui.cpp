@@ -31,6 +31,44 @@ void footer(const char *help) {
   canvas.print(help);
 }
 
+int battery(int right) {
+  // reading every 2 s: the percentage would flicker otherwise (the Cardputer
+  // only measures the battery voltage)
+  static int level = -1;
+  static bool charging = false;
+  static uint32_t lastRead = 0;
+  if (lastRead == 0 || millis() - lastRead > 2000) {
+    lastRead = millis() | 1;
+    level = M5.Power.getBatteryLevel();
+    charging = M5.Power.isCharging() == m5::Power_Class::is_charging;
+  }
+  if (level < 0) return right;
+  if (level > 100) level = 100;
+
+  char text[6];
+  snprintf(text, sizeof(text), "%d%%", level);
+  uint16_t color = level > 50 ? GREEN : level >= 20 ? YELLOW : RED;
+  canvas.setTextSize(1);
+  int x = right - canvas.textWidth(text);
+  canvas.setTextColor(color);
+  canvas.setCursor(x, 2);
+  canvas.print(text);
+
+  // the battery: 16 x 8 body, 2 px tip on the right, filled by the level
+  const int w = 16, h = 8, y = 1;
+  x -= w + 2 + 3;
+  canvas.drawRect(x, y, w, h, WHITE);
+  canvas.fillRect(x + w, y + 2, 2, h - 4, WHITE);
+  int fill = (w - 4) * level / 100;
+  if (fill < 1) fill = 1;
+  canvas.fillRect(x + 2, y + 2, fill, h - 4, color);
+  if (charging) {                               // lightning bolt over the battery
+    canvas.fillTriangle(x + 9, y - 1, x + 5, y + 4, x + 9, y + 4, YELLOW);
+    canvas.fillTriangle(x + 7, y + 3, x + 11, y + 3, x + 7, y + 8, YELLOW);
+  }
+  return x;
+}
+
 void drawA4(float a4) {
   if (fabsf(a4 - 440.0f) < 0.01f) return;
   char text[12];

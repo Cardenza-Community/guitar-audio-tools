@@ -47,8 +47,10 @@ microphone, ESP32-S3, 8 MB PSRAM, a 240 x 135 display in landscape):
 Everything that differs is in `src/hw/board.*`.
 
 ## Apps
-Version **1.1.0-beta.2** (shown on the launcher's help page `h` and printed on
-the serial console at start). In the order of the launcher:
+Version **1.1.0-beta.3** (shown on the launcher's help page `h` and printed on
+the serial console at start). The launcher's top bar shows the battery
+(icon coloured by charge, percent; a lightning bolt while the StickS3
+charges). In the order of the launcher:
 
 1. **Guitar tuner** – needle gauge ±50 cents, note name
 2. **Strum tuner** – strum all six open strings, see which are out of tune
