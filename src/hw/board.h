@@ -53,6 +53,10 @@ bool loudClicks();
 // runs on a 250 mAh battery; the Cardputer has no automatic power-off.
 uint32_t autoPowerOffMs();
 void powerOff();
+// true while powered from USB (a charger or the PC): no automatic power-off
+// then. The voltage of the USB input is checked, not the charge status: a
+// full battery is not charging, but the Stick should stay on as well.
+bool onExternalPower();
 
 // the bottom line of the apps and of the launcher
 const char *footerText();

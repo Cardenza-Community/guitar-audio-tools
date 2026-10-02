@@ -75,13 +75,14 @@ void menuInput(const board::Input &input) {
 
 // Automatic power-off (StickS3): after board::autoPowerOffMs() without a key
 // press; a warning is shown for the last WARN_MS, any key cancels it.
+// Never while powered from USB: the 5 minutes start again after unplugging.
 const uint32_t WARN_MS = 10000;
 uint32_t lastActivityMs = 0;
 
 void checkPowerOff() {
   uint32_t limit = board::autoPowerOffMs();
   if (limit == 0) return;
-  if (current && current->keepsAwake()) lastActivityMs = millis();
+  if ((current && current->keepsAwake()) || board::onExternalPower()) lastActivityMs = millis();
   if (millis() - lastActivityMs < limit) return;
   Serial.println("power off (inactivity)");
   if (current) closeApp();                           // saves the app's settings

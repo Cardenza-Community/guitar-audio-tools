@@ -66,6 +66,16 @@ bool loudClicks() { return true; }
 uint32_t autoPowerOffMs() { return 5 * 60 * 1000; }
 void powerOff() { M5.Power.powerOff(); }
 
+bool onExternalPower() {
+  static bool external = false;
+  static uint32_t lastRead = 0;
+  if (lastRead == 0 || millis() - lastRead > 1000) {   // an I2C read, once per second
+    lastRead = millis() | 1;
+    external = M5.Power.getVBUSVoltage() > 4000;        // mV, USB gives about 5000
+  }
+  return external;
+}
+
 void prepareSpeaker(uint32_t sampleRate) {
   auto cfg = M5.Speaker.config();
   cfg.sample_rate = sampleRate;
@@ -142,6 +152,7 @@ void prepareSpeaker(uint32_t) {}
 bool loudClicks() { return false; }
 uint32_t autoPowerOffMs() { return 0; }
 void powerOff() {}
+bool onExternalPower() { return false; }
 const char *footerText() { return "h: help   Esc: back"; }
 const char *launcherFooterText() { return ", / browse   Enter open   h help"; }
 

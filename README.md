@@ -42,12 +42,12 @@ microphone, ESP32-S3, 8 MB PSRAM, a 240 x 135 display in landscape):
   and the decibel meter;
 - automatic power-off after 5 minutes without a button press (a warning with
   a 10 s countdown first, any button cancels it; not while the metronome
-  runs); power on with a short press of the left button, off with a double
-  press.
+  runs or while powered from USB); power on with a short press of the left
+  button, off with a double press.
 Everything that differs is in `src/hw/board.*`.
 
 ## Apps
-Version **1.1.0-beta.3** (shown on the launcher's help page `h` and printed on
+Version **1.1.0-beta.4** (shown on the launcher's help page `h` and printed on
 the serial console at start). The launcher's top bar shows the battery
 (icon coloured by charge, percent; a lightning bolt while the StickS3
 charges). In the order of the launcher:
