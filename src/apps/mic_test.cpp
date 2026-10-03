@@ -106,7 +106,11 @@ class MicTestApp : public App {
 
   void draw(M5Canvas &c) override {
     char right[24];
+#ifdef CARDENZA_TARGET
+    snprintf(right, sizeof(right), "Digital %d dB", es8311::pgaGain());
+#else
     snprintf(right, sizeof(right), "PGA %d dB", es8311::pgaGain());
+#endif
     const char *title = dumpState_ == DumpState::Armed       ? "ARMED - pluck now!"
                         : dumpState_ == DumpState::Recording ? "RECORDING..."
                         : sweeping_                          ? "GAIN TEST - steady tone!"

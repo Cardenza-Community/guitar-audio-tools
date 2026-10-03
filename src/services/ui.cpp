@@ -32,6 +32,9 @@ void footer(const char *help) {
 }
 
 int battery(int right) {
+#ifdef CARDENZA_TARGET
+  return right; // Cardenza has no battery ADC or charging circuit.
+#else
   // reading every 2 s: the percentage would flicker otherwise (the Cardputer
   // only measures the battery voltage)
   static int level = -1;
@@ -67,6 +70,7 @@ int battery(int right) {
     canvas.fillTriangle(x + 7, y + 3, x + 11, y + 3, x + 7, y + 8, YELLOW);
   }
   return x;
+#endif
 }
 
 void drawA4(float a4) {

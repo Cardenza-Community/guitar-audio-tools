@@ -2,6 +2,9 @@
 #include <M5Unified.h>
 #include <freertos/stream_buffer.h>
 #include <atomic>
+#ifdef CARDENZA_TARGET
+#include <cmath>
+#endif
 #include <esp_timer.h>
 #include "../hw/es8311.h"
 
@@ -86,7 +89,16 @@ uint32_t sampleRate() { return currentRate; }
 
 size_t read(int16_t *dst, size_t maxCount) {
   if (!stream) return 0;
-  return xStreamBufferReceive(stream, dst, maxCount * sizeof(int16_t), 0) / sizeof(int16_t);
+  const size_t count = xStreamBufferReceive(stream, dst, maxCount * sizeof(int16_t), 0) / sizeof(int16_t);
+#ifdef CARDENZA_TARGET
+  // The original PDM microphone has no codec PGA: apply the selected digital gain.
+  const float gain = powf(10.0f, es8311::pgaGain() / 20.0f);
+  for (size_t i = 0; i < count; ++i) {
+    const float sample = dst[i] * gain;
+    dst[i] = sample > 32767 ? 32767 : sample < -32768 ? -32768 : (int16_t)sample;
+  }
+#endif
+  return count;
 }
 
 double measuredRate() {
