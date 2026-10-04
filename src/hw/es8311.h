@@ -1,4 +1,6 @@
 // ES8311 audio codec on the Cardputer ADV.
+// Runtime original Cardputer/Cardenza use PDM microphone digital gain
+// and the fork owns ES8156 DAC setup; native ADV/Stick keep ES8311 ADC.
 //
 // The ADV microphone is not wired to the ESP32-S3 directly: it goes through
 // the ES8311 codec, which is configured over the internal I2C bus (address 0x18)

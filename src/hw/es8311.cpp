@@ -12,16 +12,22 @@ void setPgaGain(int db) {
   db = constrain(db, 0, 30);
   int step = db / 3;                  // 0..10, 3 dB each
   // reg 0x14: bits 5:4 = input (1 = MIC1P/MIC1N), bits 3:0 = PGA gain
-  M5.In_I2C.writeRegister8(ADDRESS, 0x14, 0x10 | step, I2C_FREQ);
+  if (M5.getBoard() != m5::board_t::board_M5Cardputer)
+    M5.In_I2C.writeRegister8(ADDRESS, 0x14, 0x10 | step, I2C_FREQ);
   currentGain = step * 3;
 }
 
 int pgaGain() { return currentGain; }
 
 void speakerOff() {
+  if (M5.getBoard() == m5::board_t::board_M5Cardputer) {
+    M5.Speaker.end(); // Fork callback mutes ES8156; PDM mic owns I2S.
+    return;
+  }
   M5.In_I2C.writeRegister8(ADDRESS, 0x32, 0x00, I2C_FREQ);   // DAC volume: -95.5 dB (silent)
   M5.In_I2C.writeRegister8(ADDRESS, 0x12, 0x02, I2C_FREQ);   // PDN_DAC: DAC powered down (default)
   M5.In_I2C.writeRegister8(ADDRESS, 0x13, 0x40, I2C_FREQ);   // output drive back to default
+
 }
 
 // the same writes as M5Unified's _microphone_enabled_cb_cardputer_adv
@@ -49,14 +55,24 @@ struct MicCallbackAccess : m5::Mic_Class {
   }
 };
 
-void installQuietMicCallback() { MicCallbackAccess::set(M5.Mic, micCallback); }
+void installQuietMicCallback() {
+  // Keep the fork's ES8156 Speaker callback and original PDM mic intact.
+  if (M5.getBoard() != m5::board_t::board_M5Cardputer)
+    MicCallbackAccess::set(M5.Mic, micCallback);
+}
 
 uint8_t readRegister(uint8_t reg) {
-  return M5.In_I2C.readRegister8(ADDRESS, reg, I2C_FREQ);
+  if (M5.isCardenza()) return M5.Ex_I2C.readRegister8(0x08, reg, I2C_FREQ);
+  return M5.getBoard() != m5::board_t::board_M5Cardputer
+      ? M5.In_I2C.readRegister8(ADDRESS, reg, I2C_FREQ) : 0;
 }
 
 void printRegisters() {
   const uint8_t regs[] = {0x00, 0x01, 0x02, 0x0A, 0x0D, 0x0E, 0x14, 0x16, 0x17, 0x1C};
+  if (M5.getBoard() == m5::board_t::board_M5Cardputer) {
+    Serial.println("PDM microphone; digital gain (no ADC codec registers)");
+    return;
+  }
   Serial.print("ES8311:");
   for (uint8_t r : regs) Serial.printf(" [%02X]=%02X", r, readRegister(r));
   Serial.println();

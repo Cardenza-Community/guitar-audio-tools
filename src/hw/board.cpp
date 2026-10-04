@@ -105,6 +105,11 @@ int controlsHelp(const ui::HelpItem *&items) {
 void begin() {
   auto cfg = M5.config();
   M5Cardputer.begin(cfg, true);                      // true = enable the keyboard too
+  if (M5.isCardenza() && !M5.cardenzaCodecReady()) {
+    M5.Display.fillScreen(BLACK);
+    M5.Display.drawString("Audio initialization failed", 6, 55);
+    for (;;) delay(1000);
+  }
 }
 
 // The library reports a change whenever the NUMBER of held keys changes and

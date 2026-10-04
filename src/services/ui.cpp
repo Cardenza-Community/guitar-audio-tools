@@ -32,6 +32,7 @@ void footer(const char *help) {
 }
 
 int battery(int right) {
+  if (M5.isCardenza()) return right; // No battery/charging hardware.
   // reading every 2 s: the percentage would flicker otherwise (the Cardputer
   // only measures the battery voltage)
   static int level = -1;

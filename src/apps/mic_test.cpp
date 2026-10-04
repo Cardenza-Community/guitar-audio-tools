@@ -106,7 +106,8 @@ class MicTestApp : public App {
 
   void draw(M5Canvas &c) override {
     char right[24];
-    snprintf(right, sizeof(right), "PGA %d dB", es8311::pgaGain());
+    snprintf(right, sizeof(right), M5.getBoard() == m5::board_t::board_M5Cardputer
+        ? "Digital %d dB" : "PGA %d dB", es8311::pgaGain());
     const char *title = dumpState_ == DumpState::Armed       ? "ARMED - pluck now!"
                         : dumpState_ == DumpState::Recording ? "RECORDING..."
                         : sweeping_                          ? "GAIN TEST - steady tone!"
